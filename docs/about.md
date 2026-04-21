@@ -551,38 +551,59 @@ def get_user(username):
 ## 13. Tech Stack
 
 ```
-Backend:        Python + FastAPI
+Backend:        Python + FastAPI (with Pydantic for data validation)
 Agent LLM:      Claude Sonnet (claude-sonnet-4-20250514)
 Static Scanner: Semgrep (OSS)
-RAG:            LangChain + ChromaDB + OpenAI text-embedding-3-small
+RAG:            ChromaDB (local vector store without external dependencies)
 Sandbox:        Docker (rootless) + Python:3.11-slim base image
 Queue:          PostgreSQL + pgqueue (simple, no Redis needed for MVP)
 GitHub:         PyGithub library + GitHub Apps OAuth
 Tests:          pytest (run inside Docker sandbox)
+Config:         Centralized config.py for secrets and constants
+Logging:        Python native logging for structured output
 Deployment:     Single VPS or Railway.app for hackathon
 ```
 
 ### Key files structure
 
 ```
-vulnswarm/
-├── main.py                  # FastAPI app, webhook endpoint
-├── orchestrator.py          # Agent coordination logic
-├── rag/
-│   ├── indexer.py           # Initial repo scan + embedding
-│   └── retriever.py         # Context retrieval on commit
+Aegis/
+├── docs/                         # Existing documentation
+│   ├── about.md
+│   ├── Phases.md
+│   └── context.md
+├── main.py                       # FastAPI entry point
+├── orchestrator.py               # Pipeline coordinator
+├── config.py                     # Centralized configuration
 ├── agents/
-│   ├── hacker.py            # Agent A
-│   ├── engineer.py          # Agent B
-│   └── reviewer.py          # Agent C
+│   ├── __init__.py
+│   ├── hacker.py                 # Agent A — exploit writer
+│   ├── engineer.py               # Agent B — patch writer
+│   └── reviewer.py               # Agent C — verifier + retry loop
+├── rag/
+│   ├── __init__.py
+│   ├── indexer.py                # One-time repo indexing
+│   └── retriever.py              # Per-commit context retrieval
 ├── sandbox/
-│   ├── docker_runner.py     # Container lifecycle management
-│   └── Dockerfile           # Sandbox image definition
+│   ├── __init__.py
+│   └── docker_runner.py          # Isolated Docker execution
 ├── github/
-│   ├── webhook.py           # Webhook receiver + validation
-│   └── pr_creator.py        # PR generation
-└── scanner/
-    └── semgrep_runner.py    # First-pass static analysis
+│   ├── __init__.py
+│   ├── webhook.py                # Webhook validation + parsing
+│   ├── diff_fetcher.py           # Git diff retrieval
+│   └── pr_creator.py             # PR creation
+├── scanner/
+│   ├── __init__.py
+│   └── semgrep_runner.py         # Semgrep integration
+├── test_repo/                    # Intentionally vulnerable demo repo
+│   ├── app.py
+│   └── test_app.py
+├── tests/                        # Phase verification tests
+│   ├── test_phase2.py
+│   ├── test_phase3.py
+│   ├── test_phase4.py
+│   ├── test_phase5.py
+│   └── test_phase6.py
 ```
 
 ---
