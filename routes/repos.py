@@ -38,6 +38,10 @@ class RepoResponse(BaseModel):
     created_at: str
 
 
+class RepoDetailResponse(RepoResponse):
+    html_url: str
+
+
 # ── Helpers ───────────────────────────────────────────────
 def _parse_repo_url(url: str) -> str:
     """
@@ -58,6 +62,12 @@ def _install_webhook(full_name: str, github_token: str) -> int:
     Install a webhook on a GitHub repo via the API.
     Returns the webhook ID for later cleanup.
     """
+    if not config.GITHUB_WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=500,
+            detail="GITHUB_WEBHOOK_SECRET is not configured on the backend",
+        )
+
     webhook_url = f"{config.BACKEND_URL}/webhook/github"
 
     response = requests.post(
@@ -130,13 +140,27 @@ def _background_index_repo(repo_id: int, full_name: str, github_token: str):
         repo_path = os.path.join(config.REPOS_DIR, full_name.replace("/", "_"))
 
         if os.path.exists(repo_path):
-            subprocess.run(["git", "-C", repo_path, "pull"], capture_output=True, timeout=60)
+            pull_result = subprocess.run(
+                ["git", "-C", repo_path, "pull"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if pull_result.returncode != 0:
+                raise RuntimeError(f"git pull failed: {pull_result.stderr.strip()}")
         else:
             clone_url = f"https://x-access-token:{github_token}@github.com/{full_name}.git"
-            subprocess.run(["git", "clone", clone_url, repo_path], capture_output=True, timeout=120)
+            clone_result = subprocess.run(
+                ["git", "clone", clone_url, repo_path],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if clone_result.returncode != 0:
+                raise RuntimeError(f"git clone failed: {clone_result.stderr.strip()}")
 
         # Build RAG index
-        num_files = index_repository(repo_path)
+        num_files = index_repository(repo_path, full_name)
         logger.info(f"Background: Indexed {num_files} files from {full_name}")
 
         # Update DB
@@ -146,7 +170,7 @@ def _background_index_repo(repo_id: int, full_name: str, github_token: str):
         logger.info(f"Background: {full_name} is now being monitored ✅")
 
     except Exception as e:
-        logger.error(f"Background: Failed to index {full_name}: {e}")
+        logger.exception(f"Background: Failed to index {full_name}: {e}")
         repo = db.query(Repo).filter(Repo.id == repo_id).first()
         if repo:
             repo.status = "error"
@@ -230,6 +254,24 @@ def list_repos(user_id: int, db: Session = Depends(get_db)):
         )
         for r in repos
     ]
+
+
+@router.get("/{repo_id}", response_model=RepoDetailResponse)
+def get_repo(repo_id: int, db: Session = Depends(get_db)):
+    """Get a single monitored repo by ID."""
+    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repo not found")
+
+    return RepoDetailResponse(
+        id=repo.id,
+        full_name=repo.full_name,
+        webhook_id=repo.webhook_id,
+        is_indexed=repo.is_indexed,
+        status=repo.status,
+        created_at=str(repo.created_at),
+        html_url=f"https://github.com/{repo.full_name}",
+    )
 
 
 @router.delete("/{repo_id}")

@@ -38,6 +38,12 @@ PORT = int(os.getenv("PORT", "8000"))
 REPOS_DIR = os.path.join(os.path.dirname(__file__), "repos")
 VECTOR_DB_DIR = os.path.join(os.path.dirname(__file__), "aegis_vector_db")
 
+# ── Scanner Settings ───────────────────────────────────────
+# Optional absolute path to Semgrep binary. If unset, Aegis auto-detects.
+SEMGREP_BIN = os.getenv("SEMGREP_BIN", "").strip()
+SEMGREP_DOCKER_IMAGE = os.getenv("SEMGREP_DOCKER_IMAGE", "returntocorp/semgrep:latest")
+SEMGREP_TIMEOUT = int(os.getenv("SEMGREP_TIMEOUT", "180"))
+
 # ── Docker Sandbox Settings ───────────────────────────────
 SANDBOX_IMAGE = "python:3.11-slim"
 SANDBOX_TIMEOUT = 30          # seconds for exploit execution
@@ -73,4 +79,9 @@ def setup_logging(level=logging.INFO):
 
 
 # Create repos directory on import
+ANTIGRAVITY_SKILLS_DIR = os.getenv("ANTIGRAVITY_SKILLS_DIR", "/Users/mitulbhatia/Downloads/antigravity-awesome-skills-main")
+
+# Create repos directory on import
 os.makedirs(REPOS_DIR, exist_ok=True)
+# Ensure skills directory exists (no-op if already exists)
+os.makedirs(ANTIGRAVITY_SKILLS_DIR, exist_ok=True)

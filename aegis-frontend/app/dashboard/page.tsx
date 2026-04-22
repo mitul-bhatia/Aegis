@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, type RepoInfo, type ScanInfo } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -100,9 +100,21 @@ function RepoCard({
 
 // ── Scan Card Component ──────────────────────────────────
 function ScanCard({ scan }: { scan: ScanInfo }) {
+  const router = useRouter();
+
   return (
-    <Link href={`/scans/${scan.id}`}>
-      <Card className="aegis-card-hover border-border/50 cursor-pointer">
+    <Card
+      className="aegis-card-hover border-border/50 cursor-pointer"
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(`/scans/${scan.id}`)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          router.push(`/scans/${scan.id}`);
+        }
+      }}
+    >
         <CardContent className="p-4">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
@@ -149,8 +161,7 @@ function ScanCard({ scan }: { scan: ScanInfo }) {
             </div>
           </div>
         </CardContent>
-      </Card>
-    </Link>
+    </Card>
   );
 }
 
@@ -182,12 +193,14 @@ function AddRepoModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2 aegis-glow">
-          <Plus className="h-4 w-4" />
-          Monitor Repo
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button className="gap-2 aegis-glow">
+            <Plus className="h-4 w-4" />
+            Monitor Repo
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a Repository</DialogTitle>
@@ -230,12 +243,15 @@ export default function DashboardPage() {
   const [repos, setRepos] = useState<RepoInfo[]>([]);
   const [scans, setScans] = useState<ScanInfo[]>([]);
   const [username, setUsername] = useState("");
+  const [userId, setUserId] = useState(0);
+  const [sessionReady, setSessionReady] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const userId =
-    typeof window !== "undefined"
-      ? Number(localStorage.getItem("aegis_user_id"))
-      : 0;
+  useEffect(() => {
+    setUserId(Number(localStorage.getItem("aegis_user_id")));
+    setUsername(localStorage.getItem("aegis_username") || "");
+    setSessionReady(true);
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -252,11 +268,11 @@ export default function DashboardPage() {
   }, [userId]);
 
   useEffect(() => {
+    if (!sessionReady) return;
     if (!userId) {
       router.push("/");
       return;
     }
-    setUsername(localStorage.getItem("aegis_username") || "");
     fetchData().finally(() => setLoading(false));
 
     // Connect to live feed
@@ -272,7 +288,7 @@ export default function DashboardPage() {
       es.close();
       clearInterval(interval);
     };
-  }, [userId, router, fetchData]);
+  }, [sessionReady, userId, router, fetchData]);
 
   async function handleAddRepo(url: string) {
     await api.addRepo(userId, url);

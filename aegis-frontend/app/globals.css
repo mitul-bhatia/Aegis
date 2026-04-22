@@ -125,12 +125,18 @@
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans dark;
+    @apply font-sans;
   }
 }
 
 /* ── Aegis Custom Styles ──────────────────────────────── */
 @layer utilities {
+  .aegis-grid-pattern {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
   .aegis-glow {
     box-shadow: 0 0 20px oklch(0.75 0.18 160 / 15%), 0 0 60px oklch(0.75 0.18 160 / 5%);
   }

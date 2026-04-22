@@ -37,6 +37,12 @@ export const api = {
     return res.json();
   },
 
+  async getRepo(repoId: number) {
+    const res = await fetch(`${API_BASE}/api/repos/${repoId}`);
+    if (!res.ok) throw new Error("Repo not found");
+    return res.json();
+  },
+
   async deleteRepo(repoId: number) {
     const res = await fetch(`${API_BASE}/api/repos/${repoId}`, {
       method: "DELETE",
@@ -88,6 +94,7 @@ export type RepoInfo = {
   is_indexed: boolean;
   status: string;
   created_at: string;
+  html_url?: string;
 };
 
 export type ScanInfo = {

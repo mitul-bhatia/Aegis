@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Shield, Zap, GitPullRequest, Bug, Lock, ArrowRight } from "lucide-react";
 
@@ -54,21 +55,16 @@ function PipelineStep({
 }
 
 export default function LandingPage() {
-  // Check if user is already logged in
-  const userId =
-    typeof window !== "undefined" ? localStorage.getItem("aegis_user_id") : null;
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUserId(localStorage.getItem("aegis_user_id"));
+  }, []);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Background grid pattern */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-      />
+      <div className="aegis-grid-pattern pointer-events-none absolute inset-0 opacity-[0.03]" />
 
       {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
@@ -77,13 +73,9 @@ export default function LandingPage() {
           <span className="text-xl font-bold tracking-tight">Aegis</span>
         </div>
         {userId ? (
-          <Button asChild>
-            <a href="/dashboard">Dashboard <ArrowRight className="ml-2 h-4 w-4" /></a>
-          </Button>
+          <Button render={<a href="/dashboard">Dashboard <ArrowRight className="ml-2 h-4 w-4" /></a>} />
         ) : (
-          <Button asChild>
-            <a href={GITHUB_OAUTH_URL}>Sign in with GitHub</a>
-          </Button>
+          <Button render={<a href={GITHUB_OAUTH_URL}>Sign in with GitHub</a>} />
         )}
       </nav>
 
@@ -107,17 +99,17 @@ export default function LandingPage() {
 
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
           {userId ? (
-            <Button size="lg" className="aegis-glow" asChild>
-              <a href="/dashboard">
-                Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </Button>
+            <Button
+              size="lg"
+              className="aegis-glow"
+              render={<a href="/dashboard">Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" /></a>}
+            />
           ) : (
-            <Button size="lg" className="aegis-glow" asChild>
-              <a href={GITHUB_OAUTH_URL}>
-                Get Started with GitHub <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </Button>
+            <Button
+              size="lg"
+              className="aegis-glow"
+              render={<a href={GITHUB_OAUTH_URL}>Get Started with GitHub <ArrowRight className="ml-2 h-4 w-4" /></a>}
+            />
           )}
         </div>
       </section>

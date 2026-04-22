@@ -67,3 +67,55 @@
 - [ ] Trigger scope (push only vs PR events too)
 
 ---
+
+## Session 2 — April 22, 2026 (Blocker Fix Pass)
+
+### Goal
+Fix runtime blockers identified during audit and re-run the full validation matrix.
+
+### Implemented Fixes
+
+#### 1. Repo onboarding indexer bug fixed
+| File | Change |
+|------|--------|
+| `routes/repos.py` | Fixed background index call to pass both args: `index_repository(repo_path, full_name)` |
+| `routes/repos.py` | Added `git pull`/`git clone` return-code checks with explicit runtime errors |
+| `routes/repos.py` | Improved exception logging with stack trace (`logger.exception`) |
+
+#### 2. Semgrep scanner hardened (local + Docker fallback)
+| File | Change |
+|------|--------|
+| `scanner/semgrep_runner.py` | Added robust semgrep binary resolution (`SEMGREP_BIN`, PATH lookup, venv fallback) |
+| `scanner/semgrep_runner.py` | Added Docker fallback scanner path (`returntocorp/semgrep`) when local semgrep is unavailable/broken |
+| `scanner/semgrep_runner.py` | Added structured error handling for not found / timeout / bad exit code |
+| `scanner/semgrep_runner.py` | Refactored JSON parsing into shared parser helper |
+
+#### 3. Webhook configuration fail-closed + clearer diagnostics
+| File | Change |
+|------|--------|
+| `main.py` | Startup warning when `GITHUB_WEBHOOK_SECRET` is missing |
+| `main.py` | `/webhook/github` now returns `503` with clear message when secret is unset |
+| `routes/repos.py` | Webhook installation now rejects backend misconfiguration when secret is empty |
+
+#### 4. Config + env documentation updates
+| File | Change |
+|------|--------|
+| `config.py` | Added `SEMGREP_BIN`, `SEMGREP_DOCKER_IMAGE`, `SEMGREP_TIMEOUT` |
+| `.env.example` | Added OAuth variables, frontend/backend URLs, and Semgrep override variables |
+
+### Validation Results (Before → After)
+| Check | Before | After |
+|------|--------|-------|
+| Phase 2 (`tests/test_phase2.py`) | ❌ Failed (`semgrep` unresolved / local binary conflict) | ✅ Pass (Docker fallback scan returns findings) |
+| Phase 3 (`tests/test_phase3.py`) | ✅ Pass | ✅ Pass |
+| Phase 4 (`tests/test_phase4.py`) | ✅ Pass | ✅ Pass |
+| Phase 5 (`tests/test_phase5.py`) | ✅ Pass | ✅ Pass |
+| Phase 6 (`tests/test_phase6.py`) | ✅ Pass | ✅ Pass |
+| API health (`/health`) | ✅ Pass | ✅ Pass |
+| Scans API (`/api/scans`) | ✅ Pass | ✅ Pass |
+
+### Remaining Operational Notes
+- Local `.venv/bin/semgrep` remains incompatible in this environment due to OpenTelemetry dependency mismatch.
+- Scanner now mitigates this by falling back to Docker-based Semgrep automatically.
+- `GITHUB_WEBHOOK_SECRET` is still unset in the current `.env`, so webhook requests are intentionally rejected until configured.
+

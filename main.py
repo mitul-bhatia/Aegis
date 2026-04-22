@@ -37,6 +37,10 @@ app.include_router(scans_router)
 def on_startup():
     init_db()
     logger.info("Database initialized")
+    if not config.GITHUB_WEBHOOK_SECRET:
+        logger.warning(
+            "GITHUB_WEBHOOK_SECRET is empty. /webhook/github will reject requests until configured."
+        )
 
 @app.get("/health")
 async def health():
@@ -44,6 +48,13 @@ async def health():
 
 @app.post("/webhook/github")
 async def github_webhook(request: Request, background_tasks: BackgroundTasks):
+    if not config.GITHUB_WEBHOOK_SECRET:
+        logger.error("Rejecting webhook: GITHUB_WEBHOOK_SECRET is not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="Webhook verification is not configured on the backend",
+        )
+
     body = await request.body()
     signature = request.headers.get("X-Hub-Signature-256", "")
     

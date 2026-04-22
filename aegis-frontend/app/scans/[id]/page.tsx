@@ -336,11 +336,14 @@ export default function ScanDetailPage() {
                   </p>
                 </div>
               </div>
-              <Button asChild className="aegis-glow">
-                <a href={scan.pr_url} target="_blank" rel="noopener noreferrer">
-                  Review PR <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
+              <Button
+                className="aegis-glow"
+                render={
+                  <a href={scan.pr_url} target="_blank" rel="noopener noreferrer">
+                    Review PR <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                }
+              />
             </CardContent>
           </Card>
         )}
