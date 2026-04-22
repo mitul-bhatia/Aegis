@@ -209,8 +209,10 @@ def add_repo(
     if existing:
         raise HTTPException(status_code=409, detail=f"Repo '{full_name}' is already being monitored")
 
-    # 3. Install webhook
-    webhook_id = _install_webhook(full_name, user.github_token)
+    # 3. Install webhook - Use backend token (has admin:repo_hook) instead of user OAuth token
+    # The user's OAuth token might not have webhook permissions
+    webhook_token = config.GITHUB_TOKEN if config.GITHUB_TOKEN else user.github_token
+    webhook_id = _install_webhook(full_name, webhook_token)
 
     # 4. Save to DB
     repo = Repo(

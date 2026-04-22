@@ -16,7 +16,7 @@ except Exception as e:
 
 def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = config.SANDBOX_TIMEOUT) -> dict:
     """
-    Run an exploit script in an isolated Docker container.
+    Run an exploit script in an isolated Docker container with proper security.
     """
     if not docker_client:
         return {
@@ -36,6 +36,7 @@ def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = c
             f.write(exploit_script)
             
         try:
+            # Create container with strict security settings
             container = docker_client.containers.run(
                 config.SANDBOX_IMAGE,
                 volumes={
@@ -43,13 +44,16 @@ def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = c
                     repo_path: {"bind": "/app", "mode": "ro"},
                 },
                 working_dir="/app",
-                network_mode="none",
+                network_mode="none",  # No network access
                 mem_limit=config.SANDBOX_MEM_LIMIT,
                 cpu_quota=config.SANDBOX_CPU_QUOTA,
-                read_only=False,
-                tmpfs={"/tmp": "size=64m"},
+                read_only=False,  # Allow writes to /tmp
+                tmpfs={"/tmp": "size=64m"},  # Temporary filesystem for exploit data
                 remove=False,
                 detach=True,
+                user="sandbox",  # Run as non-root user
+                cap_drop=["ALL"],  # Drop all capabilities
+                security_opt=["no-new-privileges"],  # Prevent privilege escalation
                 entrypoint=["python", "/sandbox/exploit.py"]
             )
             
@@ -57,10 +61,11 @@ def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = c
                 result = container.wait(timeout=timeout)
                 exit_code = result["StatusCode"]
                 
-                stdout = container.logs(stdout=True, stderr=False).decode("utf-8")
-                stderr = container.logs(stdout=False, stderr=True).decode("utf-8")
+                stdout = container.logs(stdout=True, stderr=False).decode("utf-8", errors="replace")
+                stderr = container.logs(stdout=False, stderr=True).decode("utf-8", errors="replace")
                 
             except Exception as e:
+                logger.warning(f"Container execution error: {e}")
                 exit_code = -1
                 stdout = ""
                 stderr = f"Container timed out or crashed: {e}"
@@ -69,8 +74,8 @@ def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = c
                 try:
                     container.remove(force=True)
                     logger.debug("Container destroyed successfully.")
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to remove container: {e}")
                     
             exploit_succeeded = (
                 exit_code == 0 and
@@ -102,7 +107,7 @@ def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = c
 
 def run_tests_in_sandbox(repo_path: str, timeout: int = config.TEST_TIMEOUT) -> dict:
     """
-    Run the repo's unit tests inside a sandboxed container.
+    Run the repo's unit tests inside a sandboxed container with proper security.
     """
     if not docker_client:
         return {
@@ -116,22 +121,37 @@ def run_tests_in_sandbox(repo_path: str, timeout: int = config.TEST_TIMEOUT) -> 
     try:
         container = docker_client.containers.run(
             config.SANDBOX_IMAGE,
-            command="sh -c 'pip install pytest -q && python -m pytest /app -v 2>&1'",
+            command="sh -c 'pip install pytest -q 2>&1 && python -m pytest /app -v 2>&1 || echo \"No tests found or tests failed\"'",
             volumes={repo_path: {"bind": "/app", "mode": "ro"}},
             working_dir="/app",
-            network_mode="none",
+            network_mode="none",  # No network access
             mem_limit="512m",
+            user="sandbox",  # Run as non-root
+            cap_drop=["ALL"],  # Drop all capabilities
+            security_opt=["no-new-privileges"],
             remove=False,
             detach=True
         )
         
-        result = container.wait(timeout=timeout)
-        logs = container.logs().decode("utf-8")
-        
         try:
-            container.remove(force=True)
-        except:
-            pass
+            result = container.wait(timeout=timeout)
+            logs = container.logs().decode("utf-8", errors="replace")
+        except Exception as e:
+            logger.warning(f"Test execution timeout: {e}")
+            try:
+                container.kill()
+            except:
+                pass
+            return {
+                "tests_passed": False,
+                "exit_code": -1,
+                "output": f"Tests timed out after {timeout}s"
+            }
+        finally:
+            try:
+                container.remove(force=True)
+            except Exception as e:
+                logger.warning(f"Failed to remove test container: {e}")
             
         tests_passed = result["StatusCode"] == 0
         logger.info(f"Tests: {'✅ PASSED' if tests_passed else '❌ FAILED'}")

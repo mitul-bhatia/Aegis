@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Shield, Zap, GitPullRequest, Bug, Lock, ArrowRight } from "lucide-react";
 
 const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || "";
@@ -55,12 +54,6 @@ function PipelineStep({
 }
 
 export default function LandingPage() {
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setUserId(localStorage.getItem("aegis_user_id"));
-  }, []);
-
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Background grid pattern */}
@@ -72,11 +65,12 @@ export default function LandingPage() {
           <Shield className="h-7 w-7 text-primary" />
           <span className="text-xl font-bold tracking-tight">Aegis</span>
         </div>
-        {userId ? (
-          <Button render={<a href="/dashboard">Dashboard <ArrowRight className="ml-2 h-4 w-4" /></a>} />
-        ) : (
-          <Button render={<a href={GITHUB_OAUTH_URL}>Sign in with GitHub</a>} />
-        )}
+        <Link
+          href={GITHUB_OAUTH_URL}
+          className="inline-flex h-8 items-center justify-center rounded-lg border border-transparent bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+        >
+          Sign in with GitHub
+        </Link>
       </nav>
 
       {/* Hero */}
@@ -98,19 +92,20 @@ export default function LandingPage() {
         </p>
 
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          {userId ? (
-            <Button
-              size="lg"
-              className="aegis-glow"
-              render={<a href="/dashboard">Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" /></a>}
-            />
-          ) : (
-            <Button
-              size="lg"
-              className="aegis-glow"
-              render={<a href={GITHUB_OAUTH_URL}>Get Started with GitHub <ArrowRight className="ml-2 h-4 w-4" /></a>}
-            />
-          )}
+          <Link
+            href={GITHUB_OAUTH_URL}
+            className="aegis-glow inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+          >
+            Get Started with GitHub
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+          <Link
+            href="/dashboard"
+            className="inline-flex h-9 items-center justify-center rounded-lg border border-border/50 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            Go to Dashboard
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
         </div>
       </section>
 

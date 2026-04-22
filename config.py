@@ -45,7 +45,7 @@ SEMGREP_DOCKER_IMAGE = os.getenv("SEMGREP_DOCKER_IMAGE", "returntocorp/semgrep:l
 SEMGREP_TIMEOUT = int(os.getenv("SEMGREP_TIMEOUT", "180"))
 
 # ── Docker Sandbox Settings ───────────────────────────────
-SANDBOX_IMAGE = "python:3.11-slim"
+SANDBOX_IMAGE = "aegis-sandbox:latest"  # Our custom secure sandbox image
 SANDBOX_TIMEOUT = 30          # seconds for exploit execution
 SANDBOX_MEM_LIMIT = "256m"
 SANDBOX_CPU_QUOTA = 50000     # 50% of one core
