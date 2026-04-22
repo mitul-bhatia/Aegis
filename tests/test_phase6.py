@@ -26,7 +26,7 @@ Leaked 2 rows of user data: [(1, 'admin', 'secret'), (2, 'alice', 'pass')]
 """
 
 print("Running Agent B (The Engineer)...")
-print("Note: this requires a valid ANTHROPIC_API_KEY in your .env file")
+print("Note: this requires a valid MISTRAL_API_KEY in your .env file")
 
 result = run_engineer_agent(
     vulnerable_code=vulnerable_code,

@@ -1,10 +1,12 @@
 import logging
-from anthropic import Anthropic
+from mistralai.client.sdk import Mistral
+
 import config
 
 logger = logging.getLogger(__name__)
 
-client = Anthropic()
+# Initialize Mistral client
+client = Mistral(api_key=config.MISTRAL_API_KEY)
 
 ENGINEER_SYSTEM_PROMPT = """You are Agent B — a senior security engineer who writes clean, safe code.
 
@@ -27,6 +29,7 @@ def run_engineer_agent(
 ) -> dict:
     """
     Agent B writes a patch for the vulnerability.
+    Uses Devstral 2 — frontier agentic coding model optimized for software engineering.
     """
     retry_context = ""
     if error_logs:
@@ -51,19 +54,22 @@ Please fix these issues in your new patch attempt."""
 
 Output ONLY the complete, fixed Python code for {file_path}. No explanation. Just the code."""
     
-    logger.info(f"Agent B writing patch for {file_path}...")
+    logger.info(f"Agent B ({config.ENGINEER_MODEL}) writing patch for {file_path}...")
     if error_logs:
         logger.info("This is a retry — incorporating feedback from previous failure")
         
-    response = client.messages.create(
-        model=config.CLAUDE_MODEL,
-        max_tokens=3000,
-        system=ENGINEER_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_prompt}]
+    response = client.chat.complete(
+        model=config.ENGINEER_MODEL,
+        max_tokens=config.ENGINEER_MAX_TOKENS,
+        messages=[
+            {"role": "system", "content": ENGINEER_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
     )
     
-    patched_code = response.content[0].text.strip()
+    patched_code = response.choices[0].message.content.strip()
     
+    # Clean markdown code fences if present
     if patched_code.startswith("```python"):
         patched_code = patched_code[9:]
     if patched_code.startswith("```"):
@@ -73,6 +79,7 @@ Output ONLY the complete, fixed Python code for {file_path}. No explanation. Jus
     patched_code = patched_code.strip()
     
     logger.info(f"Agent B patch ready ({len(patched_code)} characters)")
+    logger.info(f"Tokens used — input: {response.usage.prompt_tokens}, output: {response.usage.completion_tokens}")
     
     return {
         "file_path": file_path,

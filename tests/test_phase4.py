@@ -33,7 +33,7 @@ semgrep_findings = [{
 rag_context = "=== RELATED CODEBASE CONTEXT ===\nThis function is called by POST /login endpoint."
 
 print("Running Agent A (The Hacker)...")
-print("Note: this requires a valid ANTHROPIC_API_KEY in your .env file")
+print("Note: this requires a valid MISTRAL_API_KEY in your .env file")
 
 result = run_hacker_agent(diff, semgrep_findings, rag_context)
 

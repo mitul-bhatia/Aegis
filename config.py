@@ -14,12 +14,22 @@ load_dotenv()
 
 
 # ── API Keys ──────────────────────────────────────────────
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
 
+# ── GitHub OAuth (for multi-user sign-in) ─────────────────
+GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
+GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
 # ── Model Settings ────────────────────────────────────────
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+# Agent A (Hacker): Codestral — fast, cheap, code-focused, minimal guardrails
+HACKER_MODEL = os.getenv("HACKER_MODEL", "codestral-2508")
+
+# Agent B (Engineer): Devstral 2 — frontier agentic coding model
+ENGINEER_MODEL = os.getenv("ENGINEER_MODEL", "devstral-2512")
 
 # ── Server Settings ───────────────────────────────────────
 PORT = int(os.getenv("PORT", "8000"))
@@ -37,7 +47,8 @@ TEST_TIMEOUT = 60             # seconds for test suite execution
 
 # ── Agent Settings ────────────────────────────────────────
 MAX_PATCH_RETRIES = 3         # Max attempts for Agent B before escalating
-HACKER_THINKING_BUDGET = 2000 # Extended thinking budget tokens for Agent A
+HACKER_MAX_TOKENS = 4000      # Max output tokens for exploit generation
+ENGINEER_MAX_TOKENS = 3000    # Max output tokens for patch generation
 
 # ── RAG Settings ──────────────────────────────────────────
 RAG_TOP_K = 5                 # Number of related files to retrieve
