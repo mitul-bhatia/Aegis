@@ -79,7 +79,7 @@ def setup_logging(level=logging.INFO):
 
 
 # Create repos directory on import
-ANTIGRAVITY_SKILLS_DIR = os.getenv("ANTIGRAVITY_SKILLS_DIR", "/Users/mitulbhatia/Downloads/antigravity-awesome-skills-main")
+ANTIGRAVITY_SKILLS_DIR = os.getenv("ANTIGRAVITY_SKILLS_DIR", os.path.join(os.path.dirname(__file__), "antigravity_skills"))
 
 # Create repos directory on import
 os.makedirs(REPOS_DIR, exist_ok=True)

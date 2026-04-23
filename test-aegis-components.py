@@ -105,7 +105,7 @@ def test_agent_a(semgrep_findings):
         return False, None
     
     try:
-        from agents.hacker import run_hacker_agent
+        from agents.exploiter import run_exploiter_agent
         
         mock_diff = {
             "changed_files": [{
@@ -128,7 +128,9 @@ def test_agent_a(semgrep_findings):
         rag_context = "This is a Flask app with SQLite database. The get_user function queries the users table."
         
         logger.info("Calling Agent A to generate exploit...")
-        result = run_hacker_agent(mock_diff, semgrep_findings, rag_context)
+        # Pass the first finding as a single dict
+        first_finding = semgrep_findings[0] if semgrep_findings else {}
+        result = run_exploiter_agent(first_finding, mock_diff, rag_context)
         
         exploit_script = result["exploit_script"]
         vuln_type = result["vulnerability_type"]
