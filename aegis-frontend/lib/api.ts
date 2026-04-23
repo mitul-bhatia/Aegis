@@ -66,15 +66,18 @@ export const api = {
   },
 
   // ── SSE ───────────────────────────────────────────────
-  connectLiveFeed(onMessage: (data: unknown) => void): EventSource {
+  connectLiveFeed(onMessage: (data: ScanInfo) => void): EventSource {
     const es = new EventSource(`${API_BASE}/api/scans/live`);
     es.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(event.data) as ScanInfo;
         onMessage(data);
-      } catch {
-        // keepalive or malformed, ignore
+      } catch (err) {
+        console.error("SSE parse error:", err);
       }
+    };
+    es.onerror = (err) => {
+      console.error("SSE connection error:", err);
     };
     return es;
   },

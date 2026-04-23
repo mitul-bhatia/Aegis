@@ -166,6 +166,9 @@ def test_docker_sandbox(exploit_script):
         logger.info(f"   Exploit succeeded: {result['exploit_succeeded']}")
         logger.info(f"   Output:\n{result['stdout'][:500]}")
         
+        if result['stderr']:
+            logger.info(f"   Stderr:\n{result['stderr'][:500]}")
+        
         if result['exploit_succeeded']:
             logger.info("✅ Docker Sandbox WORKS - Exploit ran and succeeded")
             return True, result

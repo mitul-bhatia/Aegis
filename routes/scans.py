@@ -1,172 +1,150 @@
 """
-Aegis — Scan Routes
-
-Handles:
-- GET  /api/scans          — Scan history (all or per repo)
-- GET  /api/scans/{id}     — Single scan with full detail
-- GET  /api/scans/live     — SSE stream for live scan updates
+SSE (Server-Sent Events) endpoint for real-time scan updates
 """
-
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from database.db import SessionLocal
+from database.models import Scan
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, Query
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
-from database.db import get_db
-from database.models import Scan, ScanStatus
-
+router = APIRouter()
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/scans", tags=["scans"])
 
-
-# ── Global event bus for SSE ──────────────────────────────
-# In-memory list of queues. Each connected client gets one.
-_sse_clients: list[asyncio.Queue] = []
-
-
-async def broadcast_scan_update(scan_data: dict):
-    """Push a scan update to all connected SSE clients."""
-    dead_clients = []
-    for queue in _sse_clients:
-        try:
-            await queue.put(scan_data)
-        except Exception:
-            dead_clients.append(queue)
-    for q in dead_clients:
-        _sse_clients.remove(q)
+# Global dict to track SSE clients
+_sse_clients = []
 
 
 def notify_scan_update_sync(scan_data: dict):
     """
-    Synchronous wrapper to broadcast scan updates.
-    Call this from the pipeline (which runs in background threads).
+    Synchronous function to notify all SSE clients of a scan update.
+    Called from orchestrator after each status change.
     """
-    import asyncio
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(broadcast_scan_update(scan_data))
-        else:
-            asyncio.run(broadcast_scan_update(scan_data))
-    except RuntimeError:
-        # No event loop — skip SSE notification (non-critical)
-        pass
+    # Store the update for the next SSE poll
+    # This is a simple implementation - in production, use Redis or similar
+    pass  # SSE clients will poll the database
 
 
-# ── Response Models ───────────────────────────────────────
-class ScanSummary(BaseModel):
-    id: int
-    repo_id: int
-    commit_sha: str
-    branch: str
-    status: str
-    vulnerability_type: Optional[str]
-    severity: Optional[str]
-    pr_url: Optional[str]
-    created_at: str
-
-
-class ScanDetail(ScanSummary):
-    vulnerable_file: Optional[str]
-    exploit_output: Optional[str]
-    patch_diff: Optional[str]
-    error_message: Optional[str]
-    completed_at: Optional[str]
-
-
-# ── Routes ────────────────────────────────────────────────
-@router.get("/live")
-async def live_scan_feed():
+async def scan_event_generator(repo_id: Optional[int] = None):
     """
-    Server-Sent Events endpoint for live scan updates.
-    Frontend connects once and receives updates as they happen.
+    Yields SSE events for scan status updates.
+    Polls DB every 2 seconds and emits scans that have changed status.
     """
-    queue: asyncio.Queue = asyncio.Queue()
-    _sse_clients.append(queue)
-
-    async def event_stream():
+    seen_statuses = {}  # scan_id -> last known status
+    
+    while True:
+        db = SessionLocal()
         try:
-            # Send keepalive every 15s so connection doesn't drop
-            while True:
-                try:
-                    data = await asyncio.wait_for(queue.get(), timeout=15.0)
+            query = db.query(Scan).order_by(Scan.created_at.desc()).limit(50)
+            if repo_id:
+                query = query.filter(Scan.repo_id == repo_id)
+            scans = query.all()
+            
+            for scan in scans:
+                # Emit if status changed or if it's a new scan
+                if seen_statuses.get(scan.id) != scan.status:
+                    seen_statuses[scan.id] = scan.status
+                    data = {
+                        "id": scan.id,
+                        "repo_id": scan.repo_id,
+                        "commit_sha": scan.commit_sha,
+                        "branch": scan.branch,
+                        "status": scan.status,
+                        "vulnerability_type": scan.vulnerability_type,
+                        "severity": scan.severity,
+                        "vulnerable_file": scan.vulnerable_file,
+                        "exploit_output": scan.exploit_output,
+                        "patch_diff": scan.patch_diff,
+                        "pr_url": scan.pr_url,
+                        "created_at": scan.created_at.isoformat() if scan.created_at else None,
+                        "completed_at": scan.completed_at.isoformat() if scan.completed_at else None
+                    }
                     yield f"data: {json.dumps(data)}\n\n"
-                except asyncio.TimeoutError:
-                    yield f": keepalive\n\n"
-        except asyncio.CancelledError:
-            pass
+        except Exception as e:
+            logger.error(f"SSE error: {e}")
         finally:
-            if queue in _sse_clients:
-                _sse_clients.remove(queue)
+            db.close()
+        
+        await asyncio.sleep(2)
 
+
+@router.get("/api/scans/live")
+async def live_scans(repo_id: Optional[int] = None):
+    """
+    SSE endpoint for real-time scan updates.
+    Frontend connects with: new EventSource('/api/scans/live')
+    """
     return StreamingResponse(
-        event_stream(),
+        scan_event_generator(repo_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+            "X-Accel-Buffering": "no",  # Important for nginx proxying
+            "Connection": "keep-alive"
+        }
     )
 
 
-@router.get("", response_model=list[ScanSummary])
-def list_scans(
-    repo_id: Optional[int] = Query(None),
-    user_id: Optional[int] = Query(None),
-    limit: int = Query(50, le=200),
-    db: Session = Depends(get_db),
-):
-    """List scans, optionally filtered by repo."""
-    query = db.query(Scan)
+@router.get("/api/scans")
+async def list_scans(repo_id: Optional[int] = None, limit: int = 20):
+    """
+    Get list of recent scans (non-SSE, for initial page load).
+    """
+    db = SessionLocal()
+    try:
+        query = db.query(Scan).order_by(Scan.created_at.desc()).limit(limit)
+        if repo_id:
+            query = query.filter(Scan.repo_id == repo_id)
+        scans = query.all()
+        return [
+            {
+                "id": s.id,
+                "repo_id": s.repo_id,
+                "commit_sha": s.commit_sha,
+                "branch": s.branch,
+                "status": s.status,
+                "vulnerability_type": s.vulnerability_type,
+                "severity": s.severity,
+                "vulnerable_file": s.vulnerable_file,
+                "exploit_output": s.exploit_output,
+                "patch_diff": s.patch_diff,
+                "pr_url": s.pr_url,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "completed_at": s.completed_at.isoformat() if s.completed_at else None
+            }
+            for s in scans
+        ]
+    finally:
+        db.close()
 
-    if repo_id:
-        query = query.filter(Scan.repo_id == repo_id)
 
-    scans = query.order_by(Scan.created_at.desc()).limit(limit).all()
-
-    return [
-        ScanSummary(
-            id=s.id,
-            repo_id=s.repo_id,
-            commit_sha=s.commit_sha,
-            branch=s.branch,
-            status=s.status,
-            vulnerability_type=s.vulnerability_type,
-            severity=s.severity,
-            pr_url=s.pr_url,
-            created_at=str(s.created_at),
-        )
-        for s in scans
-    ]
-
-
-@router.get("/{scan_id}", response_model=ScanDetail)
-def get_scan(scan_id: int, db: Session = Depends(get_db)):
-    """Get full detail for a single scan."""
-    scan = db.query(Scan).filter(Scan.id == scan_id).first()
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
-
-    return ScanDetail(
-        id=scan.id,
-        repo_id=scan.repo_id,
-        commit_sha=scan.commit_sha,
-        branch=scan.branch,
-        status=scan.status,
-        vulnerability_type=scan.vulnerability_type,
-        severity=scan.severity,
-        vulnerable_file=scan.vulnerable_file,
-        exploit_output=scan.exploit_output,
-        patch_diff=scan.patch_diff,
-        pr_url=scan.pr_url,
-        error_message=scan.error_message,
-        created_at=str(scan.created_at),
-        completed_at=str(scan.completed_at) if scan.completed_at else None,
-    )
+@router.get("/api/scans/{scan_id}")
+async def get_scan(scan_id: int):
+    """
+    Get details of a specific scan.
+    """
+    db = SessionLocal()
+    try:
+        scan = db.query(Scan).filter(Scan.id == scan_id).first()
+        if not scan:
+            return {"error": "Scan not found"}, 404
+        
+        return {
+            "id": scan.id,
+            "repo_id": scan.repo_id,
+            "commit_sha": scan.commit_sha,
+            "branch": scan.branch,
+            "status": scan.status,
+            "vulnerability_type": scan.vulnerability_type,
+            "severity": scan.severity,
+            "vulnerable_file": scan.vulnerable_file,
+            "exploit_output": scan.exploit_output,
+            "patch_diff": scan.patch_diff,
+            "pr_url": scan.pr_url,
+            "created_at": scan.created_at.isoformat() if scan.created_at else None,
+            "completed_at": scan.completed_at.isoformat() if scan.completed_at else None
+        }
+    finally:
+        db.close()

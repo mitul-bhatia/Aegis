@@ -30,6 +30,9 @@ def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = c
         
     logger.info("Starting isolated sandbox container for exploit...")
     
+    # Ensure repo_path is absolute
+    repo_path = os.path.abspath(repo_path)
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         exploit_path = os.path.join(tmpdir, "exploit.py")
         with open(exploit_path, "w") as f:

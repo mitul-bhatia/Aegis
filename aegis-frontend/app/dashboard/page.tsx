@@ -31,6 +31,9 @@ import {
   LogOut,
 } from "lucide-react";
 
+import { VulnCard } from "@/components/VulnCard";
+import { AddRepoModal } from "@/components/AddRepoModal";
+
 // ── Status Badge Component ───────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ElementType }> = {
@@ -275,14 +278,25 @@ export default function DashboardPage() {
     }
     fetchData().finally(() => setLoading(false));
 
-    // Connect to live feed
-    const es = api.connectLiveFeed(() => {
-      // Re-fetch on any update
-      fetchData();
+    // Connect to live feed with real-time scan updates
+    const es = api.connectLiveFeed((scanData) => {
+      // Update scans in real-time without full re-fetch
+      setScans((prevScans) => {
+        const existingIndex = prevScans.findIndex((s) => s.id === scanData.id);
+        if (existingIndex >= 0) {
+          // Update existing scan
+          const updated = [...prevScans];
+          updated[existingIndex] = scanData;
+          return updated;
+        } else {
+          // Add new scan at the beginning
+          return [scanData, ...prevScans];
+        }
+      });
     });
 
-    // Poll every 10s as fallback
-    const interval = setInterval(fetchData, 10000);
+    // Poll every 30s as fallback (less frequent since SSE is working)
+    const interval = setInterval(fetchData, 30000);
 
     return () => {
       es.close();
@@ -345,7 +359,7 @@ export default function DashboardPage() {
                 {repos.length} {repos.length === 1 ? "repo" : "repos"} connected
               </p>
             </div>
-            <AddRepoModal onAdd={handleAddRepo} />
+            <AddRepoModal userId={userId} onSuccess={fetchData} />
           </div>
 
           {repos.length === 0 ? (
@@ -389,7 +403,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {scans.map((scan) => (
-                <ScanCard key={scan.id} scan={scan} />
+                <VulnCard key={scan.id} scan={scan} />
               ))}
             </div>
           )}
