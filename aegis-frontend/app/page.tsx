@@ -1,0 +1,167 @@
+"use client";
+
+import Link from "next/link";
+import { Shield, Zap, GitPullRequest, Bug, Lock, ArrowRight } from "lucide-react";
+
+const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || "";
+const GITHUB_OAUTH_URL = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,admin:repo_hook`;
+
+function FeatureCard({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="group relative rounded-xl border border-border/50 bg-card/50 p-6 backdrop-blur-sm aegis-card-hover">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+        <Icon className="h-6 w-6 text-primary" />
+      </div>
+      <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+    </div>
+  );
+}
+
+function PipelineStep({
+  step,
+  title,
+  description,
+  isLast,
+}: {
+  step: number;
+  title: string;
+  description: string;
+  isLast?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-4">
+      <div className="flex flex-col items-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary bg-primary/10 text-sm font-bold text-primary">
+          {step}
+        </div>
+        {!isLast && <div className="mt-2 h-12 w-px bg-border" />}
+      </div>
+      <div className="pb-8">
+        <p className="font-semibold">{title}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Background grid pattern */}
+      <div className="aegis-grid-pattern pointer-events-none absolute inset-0 opacity-[0.03]" />
+
+      {/* Nav */}
+      <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
+        <div className="flex items-center gap-2">
+          <Shield className="h-7 w-7 text-primary" />
+          <span className="text-xl font-bold tracking-tight">Aegis</span>
+        </div>
+        <Link
+          href={GITHUB_OAUTH_URL}
+          className="inline-flex h-8 items-center justify-center rounded-lg border border-transparent bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+        >
+          Sign in with GitHub
+        </Link>
+      </nav>
+
+      {/* Hero */}
+      <section className="relative z-10 mx-auto max-w-4xl px-6 pt-20 text-center md:pt-32">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary">
+          <Zap className="h-3.5 w-3.5" />
+          Autonomous white-hat security
+        </div>
+
+        <h1 className="mb-6 text-4xl font-extrabold tracking-tight md:text-6xl">
+          Find, exploit, and fix <br />
+          <span className="aegis-gradient-text">vulnerabilities automatically</span>
+        </h1>
+
+        <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground leading-relaxed">
+          Aegis monitors your GitHub repos. On every commit, it scans for
+          security bugs, proves they&apos;re exploitable in a sandbox, patches them,
+          and opens a PR — all without human intervention.
+        </p>
+
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+          <Link
+            href={GITHUB_OAUTH_URL}
+            className="aegis-glow inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+          >
+            Get Started with GitHub
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+          <Link
+            href="/dashboard"
+            className="inline-flex h-9 items-center justify-center rounded-lg border border-border/50 bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          >
+            Go to Dashboard
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="relative z-10 mx-auto max-w-5xl px-6 pt-28">
+        <div className="grid gap-6 md:grid-cols-3">
+          <FeatureCard
+            icon={Bug}
+            title="Detect & Exploit"
+            description="Semgrep finds potential vulnerabilities. Our AI hacker agent writes a real exploit and runs it in an isolated Docker sandbox to prove it's real."
+          />
+          <FeatureCard
+            icon={Lock}
+            title="Patch & Verify"
+            description="An AI engineer agent writes a security patch. The exploit is re-run against the patched code — if it fails, the fix is confirmed."
+          />
+          <FeatureCard
+            icon={GitPullRequest}
+            title="PR with Proof"
+            description="Aegis opens a GitHub PR containing the patch, exploit proof, and remediation details. Review and merge — done."
+          />
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="relative z-10 mx-auto max-w-3xl px-6 pt-28 pb-20">
+        <h2 className="mb-12 text-center text-2xl font-bold md:text-3xl">
+          How it works
+        </h2>
+        <PipelineStep
+          step={1}
+          title="Connect your repo"
+          description="Paste a GitHub repo URL. Aegis installs a webhook automatically."
+        />
+        <PipelineStep
+          step={2}
+          title="Push code"
+          description="Every commit and PR triggers an automatic security scan."
+        />
+        <PipelineStep
+          step={3}
+          title="Exploit in sandbox"
+          description="AI generates a real exploit and runs it in an isolated Docker container."
+        />
+        <PipelineStep
+          step={4}
+          title="Patch & verify"
+          description="AI writes a fix, re-runs the exploit to confirm it's patched."
+        />
+        <PipelineStep
+          step={5}
+          title="Review the PR"
+          description="A GitHub PR with exploit proof and patch is ready for your review."
+          isLast
+        />
+      </section>
+    </div>
+  );
+}
