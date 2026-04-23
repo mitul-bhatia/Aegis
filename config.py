@@ -41,7 +41,7 @@ VECTOR_DB_DIR = os.path.join(os.path.dirname(__file__), "aegis_vector_db")
 # ── Scanner Settings ───────────────────────────────────────
 # Optional absolute path to Semgrep binary. If unset, Aegis auto-detects.
 SEMGREP_BIN = os.getenv("SEMGREP_BIN", "").strip()
-SEMGREP_DOCKER_IMAGE = os.getenv("SEMGREP_DOCKER_IMAGE", "returntocorp/semgrep:latest")
+SEMGREP_DOCKER_IMAGE = os.getenv("SEMGREP_DOCKER_IMAGE", "semgrep/semgrep:latest")
 SEMGREP_TIMEOUT = int(os.getenv("SEMGREP_TIMEOUT", "180"))
 
 # ── Docker Sandbox Settings ───────────────────────────────

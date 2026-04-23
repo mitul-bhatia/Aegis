@@ -146,7 +146,12 @@ def run_semgrep_on_files(file_paths: list, repo_path: str) -> list:
     # Try local binary first.
     local_result = _run_semgrep_local(full_paths)
     if local_result and local_result.returncode in [0, 1]:
-        return _parse_semgrep_output(local_result.stdout)
+        findings = _parse_semgrep_output(local_result.stdout)
+        # If parsing succeeded and we got findings, return them
+        if findings or (local_result.stdout and '"results":' in local_result.stdout):
+            return findings
+        # If parsing failed (empty findings but should have JSON), fall back to Docker
+        logger.warning("Local Semgrep output could not be parsed; trying Docker fallback.")
 
     if local_result and local_result.returncode not in [0, 1]:
         logger.warning(f"Local Semgrep failed ({local_result.returncode}): {local_result.stderr.strip()}")

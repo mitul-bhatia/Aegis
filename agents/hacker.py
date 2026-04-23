@@ -20,9 +20,11 @@ STRICT RULES FOR YOUR OUTPUT:
 2. The script MUST print "VULNERABLE: <description>" if the exploit succeeds
 3. The script MUST print "NOT_VULNERABLE" if no real vulnerability exists
 4. Use exit code 0 for vulnerable, exit code 1 for not vulnerable
-5. The script runs in an isolated Docker container — there is no real database
-   → Create your own SQLite database in /tmp/ for testing
-6. The script must be completely self-contained (include any setup it needs)
+5. The script runs in an isolated Docker container with the codebase mounted at /repo
+   → Import and call the ACTUAL vulnerable functions from the codebase
+   → Example: sys.path.insert(0, '/repo') then from app import get_user
+   → Create test databases in /tmp/ as needed for setup
+6. The script must test the ACTUAL code, not recreate the vulnerability
 7. Only claim VULNERABLE if your script ACTUALLY demonstrates the problem
    → Do not claim vulnerabilities that are theoretical
 

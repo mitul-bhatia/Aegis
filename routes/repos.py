@@ -69,6 +69,12 @@ def _install_webhook(full_name: str, github_token: str) -> int:
         )
 
     webhook_url = f"{config.BACKEND_URL}/webhook/github"
+    
+    # For local development, GitHub can't reach localhost
+    # We'll install the webhook but it won't receive events until deployed
+    if "localhost" in webhook_url or "127.0.0.1" in webhook_url:
+        logger.warning(f"⚠️  Webhook URL is localhost: {webhook_url}")
+        logger.warning("   Webhooks will not work until you deploy to a public URL or use ngrok")
 
     response = requests.post(
         f"https://api.github.com/repos/{full_name}/hooks",
@@ -92,12 +98,27 @@ def _install_webhook(full_name: str, github_token: str) -> int:
 
     if response.status_code not in (201, 200):
         error_msg = response.json().get("message", "Unknown error")
-        logger.error(f"Failed to install webhook on {full_name}: {error_msg}")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Failed to install webhook: {error_msg}. "
-                   f"Make sure your GitHub token has 'admin:repo_hook' permission."
-        )
+        logger.error(f"Failed to install webhook on {full_name}: {error_msg} (Status: {response.status_code})")
+        
+        # Provide specific error messages based on status code
+        if response.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Repository '{full_name}' not found. Make sure:\n"
+                       f"1. The repository exists\n"
+                       f"2. The repository name is correct (use 'owner/repo' format)\n"
+                       f"3. Your GitHub token has access to this repository"
+            )
+        elif response.status_code == 403:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission denied for '{full_name}'. Make sure your GitHub token has 'admin:repo_hook' permission."
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to install webhook: {error_msg}"
+            )
 
     webhook_id = response.json()["id"]
     logger.info(f"Webhook installed on {full_name} (ID: {webhook_id})")
