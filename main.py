@@ -1,4 +1,5 @@
 import json
+import os
 import logging
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,8 @@ from orchestrator import run_aegis_pipeline
 from routes.auth import router as auth_router
 from routes.repos import router as repos_router
 from routes.scans import router as scans_router
+from routes.scheduler import router as scheduler_router
+from scheduler import start_autonomous_scheduler, stop_autonomous_scheduler
 
 # Initialize configuration
 config.setup_logging()
@@ -31,16 +34,24 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(repos_router)
 app.include_router(scans_router)
+app.include_router(scheduler_router)
 
 # Create database tables on startup
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
     init_db()
     logger.info("Database initialized")
     if not config.GITHUB_WEBHOOK_SECRET:
         logger.warning(
             "GITHUB_WEBHOOK_SECRET is empty. /webhook/github will reject requests until configured."
         )
+    
+    # Start autonomous scheduler
+    if os.getenv("ENABLE_AUTONOMOUS_SCANNING", "true").lower() == "true":
+        await start_autonomous_scheduler()
+        logger.info("🤖 Autonomous scanning enabled")
+    else:
+        logger.info("🔧 Autonomous scanning disabled - webhook-only mode")
 
 @app.get("/health")
 async def health():
@@ -103,6 +114,13 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
     else:
         logger.info(f"Ignoring GitHub event type: {event_type}")
         return {"message": f"Ignoring event type: {event_type}"}
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Graceful shutdown handler"""
+    logger.info("🛑 Shutting down Aegis...")
+    await stop_autonomous_scheduler()
+
 
 if __name__ == "__main__":
     logger.info(f"Starting Aegis on port {config.PORT}...")

@@ -33,6 +33,7 @@ import {
 
 import { VulnCard } from "@/components/VulnCard";
 import { AddRepoModal } from "@/components/AddRepoModal";
+import { SchedulerControl } from "@/components/SchedulerControl";
 
 // ── Status Badge Component ───────────────────────────────
 function StatusBadge({ status }: { status: string }) {
@@ -354,6 +355,11 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Scheduler Control */}
+        <div className="mb-6">
+          <SchedulerControl />
         </div>
 
         {/* Scans feed */}
