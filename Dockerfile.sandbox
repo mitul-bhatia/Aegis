@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+# Install common dependencies for exploit testing
+RUN apt-get update && apt-get install -y \
+    sqlite3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages commonly needed for exploits
+# Note: sqlite3 is built into Python, no need to install
+RUN pip install --no-cache-dir \
+    requests \
+    pytest
+
+# Create non-root user for running exploits
+RUN useradd -m -u 1000 sandbox && \
+    mkdir -p /app /sandbox /tmp && \
+    chown -R sandbox:sandbox /app /sandbox /tmp
+
+# Set working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER sandbox
+
+# Default command
+CMD ["/bin/bash"]

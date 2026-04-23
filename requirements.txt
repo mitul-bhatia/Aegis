@@ -1,0 +1,29 @@
+# Aegis — Dependencies
+# Web server
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# AI / LLM (Mistral — Devstral 2 + Codestral)
+mistralai>=1.0.0
+
+# RAG / Vector DB
+chromadb>=0.4.22
+
+# GitHub integration
+PyGithub>=2.1.1
+gitpython>=3.1.40
+
+# Docker sandbox
+docker>=7.0.0
+
+# HTTP requests
+requests>=2.31.0
+
+# Database (SQLite + ORM)
+sqlalchemy>=2.0.0
+
+# Security scanner (installed separately via pip)
+# semgrep
