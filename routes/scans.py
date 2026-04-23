@@ -30,9 +30,12 @@ def notify_scan_update_sync(scan_data: dict):
 async def scan_event_generator(repo_id: Optional[int] = None):
     """
     Yields SSE events for scan status updates.
-    Polls DB every 2 seconds and emits scans that have changed status.
+    Polls DB every 1 second and emits scans that have changed or are new.
     """
-    seen_statuses = {}  # scan_id -> last known status
+    seen_scans = {}  # scan_id -> (status, updated_at)
+    
+    # Send initial heartbeat
+    yield f": heartbeat\n\n"
     
     while True:
         db = SessionLocal()
@@ -43,9 +46,11 @@ async def scan_event_generator(repo_id: Optional[int] = None):
             scans = query.all()
             
             for scan in scans:
-                # Emit if status changed or if it's a new scan
-                if seen_statuses.get(scan.id) != scan.status:
-                    seen_statuses[scan.id] = scan.status
+                scan_key = (scan.status, str(scan.created_at))
+                
+                # Emit if it's a new scan or status changed
+                if scan.id not in seen_scans or seen_scans.get(scan.id) != scan_key:
+                    seen_scans[scan.id] = scan_key
                     data = {
                         "id": scan.id,
                         "repo_id": scan.repo_id,
@@ -61,13 +66,15 @@ async def scan_event_generator(repo_id: Optional[int] = None):
                         "created_at": scan.created_at.isoformat() if scan.created_at else None,
                         "completed_at": scan.completed_at.isoformat() if scan.completed_at else None
                     }
+                    logger.info(f"SSE: Emitting scan {scan.id} with status {scan.status}")
                     yield f"data: {json.dumps(data)}\n\n"
         except Exception as e:
             logger.error(f"SSE error: {e}")
         finally:
             db.close()
         
-        await asyncio.sleep(2)
+        # Poll every 1 second for faster updates
+        await asyncio.sleep(1)
 
 
 @router.get("/api/scans/live")
@@ -145,6 +152,77 @@ async def get_scan(scan_id: int):
             "pr_url": scan.pr_url,
             "created_at": scan.created_at.isoformat() if scan.created_at else None,
             "completed_at": scan.completed_at.isoformat() if scan.completed_at else None
+        }
+    finally:
+        db.close()
+
+
+@router.post("/api/scans/trigger")
+async def trigger_manual_scan(repo_id: int):
+    """
+    Manually trigger a scan on a repository's latest commit.
+    Useful for testing without webhooks.
+    """
+    from orchestrator import run_aegis_pipeline
+    from database.models import Repo
+    import requests
+    
+    db = SessionLocal()
+    try:
+        repo = db.query(Repo).filter(Repo.id == repo_id).first()
+        if not repo:
+            return {"error": "Repository not found"}, 404
+        
+        # Get latest commit from GitHub
+        import config
+        api_url = f"https://api.github.com/repos/{repo.full_name}/commits/main"
+        headers = {}
+        if config.GITHUB_TOKEN:
+            headers["Authorization"] = f"token {config.GITHUB_TOKEN}"
+        response = requests.get(api_url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"GitHub API error: {response.status_code} - {response.text}")
+            return {"error": f"Failed to fetch commit: {response.status_code}", "details": response.text}, 500
+        
+        commit_data = response.json()
+        commit_sha = commit_data["sha"]
+        files_changed = [f["filename"] for f in commit_data["files"]]
+        
+        # Create push info
+        push_info = {
+            "repo_name": repo.full_name,
+            "repo_url": f"https://github.com/{repo.full_name}.git",
+            "commit_sha": commit_sha,
+            "branch": "main",
+            "files_changed": files_changed,
+            "is_pr": False,
+        }
+        
+        logger.info(f"Manual scan triggered for {repo.full_name} @ {commit_sha[:8]}")
+        
+        # Run pipeline in background with error handling
+        import threading
+        import traceback
+        
+        def run_with_error_handling():
+            try:
+                logger.info(f"Starting pipeline thread for {repo.full_name}")
+                run_aegis_pipeline(push_info)
+                logger.info(f"Pipeline thread completed for {repo.full_name}")
+            except Exception as e:
+                logger.error(f"Pipeline thread error: {e}")
+                logger.error(traceback.format_exc())
+        
+        thread = threading.Thread(target=run_with_error_handling)
+        thread.daemon = True
+        thread.start()
+        logger.info(f"Pipeline thread started (thread ID: {thread.ident})")
+        
+        return {
+            "message": "Scan triggered successfully",
+            "repo": repo.full_name,
+            "commit": commit_sha[:8],
+            "files": files_changed
         }
     finally:
         db.close()

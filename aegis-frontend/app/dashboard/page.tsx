@@ -67,10 +67,23 @@ function StatusBadge({ status }: { status: string }) {
 function RepoCard({
   repo,
   onDelete,
+  onTriggerScan,
 }: {
   repo: RepoInfo;
   onDelete: (id: number) => void;
+  onTriggerScan: (id: number) => void;
 }) {
+  const [triggering, setTriggering] = useState(false);
+
+  async function handleTriggerScan() {
+    setTriggering(true);
+    try {
+      await onTriggerScan(repo.id);
+    } finally {
+      setTriggering(false);
+    }
+  }
+
   return (
     <Card className="aegis-card-hover border-border/50">
       <CardContent className="flex items-center justify-between p-4">
@@ -87,6 +100,20 @@ function RepoCard({
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={repo.status} />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={handleTriggerScan}
+            disabled={triggering}
+          >
+            {triggering ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Activity className="h-3 w-3" />
+            )}
+            Scan
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -168,78 +195,6 @@ function ScanCard({ scan }: { scan: ScanInfo }) {
   );
 }
 
-// ── Add Repo Modal ───────────────────────────────────────
-function AddRepoModal({
-  onAdd,
-}: {
-  onAdd: (url: string) => Promise<void>;
-}) {
-  const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [open, setOpen] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      await onAdd(url);
-      setUrl("");
-      setOpen(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to add repo");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <Button className="gap-2 aegis-glow">
-            <Plus className="h-4 w-4" />
-            Monitor Repo
-          </Button>
-        }
-      />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add a Repository</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Input
-              placeholder="github.com/owner/repo"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={loading}
-              className="font-mono text-sm"
-            />
-            <p className="mt-2 text-xs text-muted-foreground">
-              Paste any GitHub repo URL. Aegis will install a webhook and start monitoring.
-            </p>
-          </div>
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
-          <Button type="submit" className="w-full" disabled={loading || !url}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Setting up...
-              </>
-            ) : (
-              "Start Monitoring"
-            )}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ── Main Dashboard ───────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
@@ -280,6 +235,7 @@ export default function DashboardPage() {
 
     // Connect to live feed with real-time scan updates
     const es = api.connectLiveFeed((scanData) => {
+      console.log("SSE received scan update:", scanData.id, scanData.status);
       // Update scans in real-time without full re-fetch
       setScans((prevScans) => {
         const existingIndex = prevScans.findIndex((s) => s.id === scanData.id);
@@ -287,16 +243,18 @@ export default function DashboardPage() {
           // Update existing scan
           const updated = [...prevScans];
           updated[existingIndex] = scanData;
+          console.log("Updated existing scan", scanData.id);
           return updated;
         } else {
           // Add new scan at the beginning
+          console.log("Added new scan", scanData.id);
           return [scanData, ...prevScans];
         }
       });
     });
 
-    // Poll every 30s as fallback (less frequent since SSE is working)
-    const interval = setInterval(fetchData, 30000);
+    // Poll every 5s as fallback (more frequent for better UX)
+    const interval = setInterval(fetchData, 5000);
 
     return () => {
       es.close();
@@ -312,6 +270,23 @@ export default function DashboardPage() {
   async function handleDeleteRepo(repoId: number) {
     await api.deleteRepo(repoId);
     await fetchData();
+  }
+
+  async function handleTriggerScan(repoId: number) {
+    try {
+      const response = await fetch(`http://localhost:8000/api/scans/trigger?repo_id=${repoId}`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to trigger scan");
+      }
+      const data = await response.json();
+      console.log("Scan triggered:", data);
+      // Refresh data to show new scan
+      setTimeout(() => fetchData(), 2000);
+    } catch (error) {
+      console.error("Error triggering scan:", error);
+    }
   }
 
   function handleLogout() {
@@ -375,7 +350,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {repos.map((repo) => (
-                <RepoCard key={repo.id} repo={repo} onDelete={handleDeleteRepo} />
+                <RepoCard key={repo.id} repo={repo} onDelete={handleDeleteRepo} onTriggerScan={handleTriggerScan} />
               ))}
             </div>
           )}
