@@ -125,8 +125,16 @@ def _broadcast(scan: Scan):
             "vulnerable_file": scan.vulnerable_file,
             "current_agent": scan.current_agent,
             "agent_message": scan.agent_message,
+            "exploit_output": scan.exploit_output,
+            "exploit_script": scan.exploit_script,
+            "original_code": scan.original_code,
+            "findings_json": scan.findings_json,
+            "patch_diff": scan.patch_diff,
+            "patch_attempts": scan.patch_attempts,
             "pr_url": scan.pr_url,
+            "error_message": scan.error_message,
             "created_at": str(scan.created_at),
+            "completed_at": str(scan.completed_at) if scan.completed_at else None,
         })
     except Exception:
         pass  # SSE is non-critical
@@ -144,6 +152,13 @@ def run_aegis_pipeline(push_info: dict):
     branch = push_info.get("branch", "main")
 
     logger.info(f"=== Aegis Pipeline: {repo_full_name} @ {commit_sha[:8]} ===")
+
+    # Reset demo mode exploit counter for this pipeline run
+    try:
+        from sandbox.docker_runner import _DEMO_EXPLOIT_CALL_COUNT
+        _DEMO_EXPLOIT_CALL_COUNT[0] = 0
+    except Exception:
+        pass
 
     db = SessionLocal()
     scan = None
@@ -175,7 +190,38 @@ def run_aegis_pipeline(push_info: dict):
             clone_url = push_info.get("repo_url", f"https://github.com/{repo_full_name}.git")
 
         clone_or_pull_repo(clone_url, local_repo_path)
-        diff = get_diff(repo_full_name, commit_sha, github_token=user_token)
+
+        # Try to get diff from GitHub; fall back to building it from local files
+        # if the GitHub API is unavailable (e.g. rate-limited or network issues)
+        try:
+            diff = get_diff(
+                repo_full_name,
+                commit_sha,
+                github_token=user_token,
+                all_changed_files=push_info.get("files_changed", []),
+            )
+        except Exception as diff_err:
+            logger.warning(f"get_diff failed ({diff_err}), building diff from local files")
+            diff = {"commit_sha": commit_sha, "commit_message": "", "changed_files": [], "total_changes": 0}
+
+        # If diff is empty but we know which files changed, build synthetic diff from local copies
+        if not diff["changed_files"] and push_info.get("files_changed"):
+            for fname in push_info["files_changed"]:
+                local_fpath = os.path.join(local_repo_path, fname)
+                _, ext = os.path.splitext(fname)
+                if ext not in config.CODE_EXTENSIONS or not os.path.exists(local_fpath):
+                    continue
+                with open(local_fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                patch = "\n".join(f"+{line}" for line in content.splitlines())
+                diff["changed_files"].append({
+                    "filename": fname,
+                    "status": "modified",
+                    "additions": content.count("\n"),
+                    "deletions": 0,
+                    "patch": patch,
+                })
+            logger.info(f"Built synthetic diff for {len(diff['changed_files'])} file(s) from local repo")
 
         if not diff["changed_files"]:
             logger.info("No supported code files changed. Pipeline done.")
@@ -184,25 +230,30 @@ def run_aegis_pipeline(push_info: dict):
             return
 
         file_paths = [f["filename"] for f in diff["changed_files"]]
-        semgrep_findings = run_semgrep_on_files(file_paths, local_repo_path)
 
-        if not semgrep_findings:
-            logger.info("✅ Semgrep clean — no issues found.")
-            if scan:
-                update_scan_status(scan.id, ScanStatus.CLEAN.value)
-            return
+        # ── Phase 3: Semgrep + RAG in parallel ───────────
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            semgrep_future = pool.submit(run_semgrep_on_files, file_paths, local_repo_path)
+            # RAG needs semgrep results for query building — start with empty list,
+            # then re-retrieve after semgrep if findings exist (fast second call)
+            rag_future = pool.submit(retrieve_relevant_context, repo_full_name, diff, [])
+            semgrep_findings = semgrep_future.result()
+            rag_context = rag_future.result()
 
-        logger.warning(f"⚠️  Semgrep: {len(semgrep_findings)} issue(s) → escalating to Agent 1 (Finder)")
-
-        # ── Phase 3: RAG Context ──────────────────────────
-        rag_context = retrieve_relevant_context(repo_full_name, diff, semgrep_findings)
+        # If semgrep found things, do a quick targeted RAG re-query
+        if semgrep_findings:
+            logger.warning(f"⚠️  Semgrep: {len(semgrep_findings)} issue(s) → escalating to Agent 1 (Finder)")
+            rag_context = retrieve_relevant_context(repo_full_name, diff, semgrep_findings)
+        else:
+            logger.info("Semgrep found nothing — still running Finder agent for deeper analysis...")
 
         # ── Phase 4: Agent 1 (Finder) — Identify ALL vulnerabilities ─────────────────────
         logger.info("🔍 Agent 1 (Finder): Analyzing code for ALL vulnerabilities...")
         if scan:
             update_scan_status(scan.id, ScanStatus.SCANNING.value, {
                 "current_agent": "finder",
-                "agent_message": f"Analyzing {len(semgrep_findings)} Semgrep finding(s) + RAG context..."
+                "agent_message": f"Analyzing {len(semgrep_findings)} Semgrep finding(s) + RAG context..." if semgrep_findings else "Running deep AI analysis (Semgrep found nothing)..."
             })
         findings = run_finder_agent(diff, semgrep_findings, rag_context)
         
@@ -327,7 +378,8 @@ def run_aegis_pipeline(push_info: dict):
             update_scan_status(scan.id, ScanStatus.PATCHING.value, {
                 "current_agent": "engineer",
                 "agent_message": f"Writing security patch for {vulnerable_file}...",
-                "original_code": original_code
+                "original_code": original_code,
+                "patch_attempts": 0
             })
 
         remediation = run_remediation_loop(
@@ -337,7 +389,9 @@ def run_aegis_pipeline(push_info: dict):
             exploit_output=exploit_output,
             vulnerability_type=vulnerability_type,
             repo_path=local_repo_path,
-            repo_name=repo_full_name
+            repo_name=repo_full_name,
+            scan_id=scan.id if scan else None,
+            update_status_fn=update_scan_status,
         )
 
         if not remediation["success"]:
@@ -359,19 +413,33 @@ def run_aegis_pipeline(push_info: dict):
         if scan:
             update_scan_status(scan.id, ScanStatus.VERIFYING.value, {
                 "current_agent": "verifier",
-                "agent_message": "Running exploit + unit tests against patched code...",
+                "agent_message": "Patch verified — exploit blocked, tests passing. Opening PR...",
                 "patch_attempts": remediation.get('attempts', 1)
             })
 
         logger.info("🚀 Opening PR with fix and exploit proof...")
-        pr_url = create_pull_request(
-            repo_full_name=repo_full_name,
-            base_branch=branch,
-            file_path=vulnerable_file,
-            patched_code=remediation["patched_code"],
-            vulnerability_type=vulnerability_type,
-            exploit_output=exploit_output,
-        )
+        try:
+            pr_url = create_pull_request(
+                repo_full_name=repo_full_name,
+                base_branch=branch,
+                file_path=vulnerable_file,
+                patched_code=remediation["patched_code"],
+                vulnerability_type=vulnerability_type,
+                exploit_output=exploit_output,
+            )
+        except Exception as pr_err:
+            logger.error(f"❌ PR creation failed: {pr_err}")
+            # Still mark as fixed — the patch is good even if PR failed
+            pr_url = None
+            if scan:
+                update_scan_status(scan.id, ScanStatus.FIXED.value, {
+                    "current_agent": None,
+                    "agent_message": f"Patch verified! PR creation failed: {pr_err}",
+                    "patch_diff": remediation["patched_code"],
+                    "patch_attempts": remediation.get('attempts', 1),
+                    "error_message": f"PR creation failed: {pr_err}",
+                })
+            return
 
         if scan:
             update_scan_status(
@@ -379,7 +447,7 @@ def run_aegis_pipeline(push_info: dict):
                 ScanStatus.FIXED.value,
                 {
                     "current_agent": None,
-                    "agent_message": f"Vulnerability fixed! Exploit blocked, tests passing. PR opened.",
+                    "agent_message": "Vulnerability fixed! Exploit blocked, tests passing. PR opened.",
                     "patch_diff": remediation["patched_code"],
                     "pr_url": pr_url,
                     "patch_attempts": remediation.get('attempts', 1)

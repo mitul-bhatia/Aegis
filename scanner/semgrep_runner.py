@@ -88,10 +88,11 @@ def _run_semgrep_local(full_paths: list) -> subprocess.CompletedProcess | None:
 
     cmd = [
         semgrep_bin,
-        "--config", "auto",
+        "--config", "p/security-audit",  # Focused security ruleset — much faster than 'auto'
         "--json",
         "--quiet",
         "--no-git-ignore",
+        "--timeout", "30",               # Per-file timeout
         *full_paths,
     ]
 
@@ -124,10 +125,11 @@ def _run_semgrep_docker(repo_path: str, relative_paths: list) -> subprocess.Comp
         f"{repo_abs}:/src:ro",
         config.SEMGREP_DOCKER_IMAGE,
         "semgrep",
-        "--config", "auto",
+        "--config", "p/security-audit",
         "--json",
         "--quiet",
         "--no-git-ignore",
+        "--timeout", "30",
         *container_paths,
     ]
 

@@ -104,6 +104,7 @@ Identify ALL vulnerabilities. Output ONLY a JSON array. No markdown. No explanat
         response = client.chat.complete(
             model=config.HACKER_MODEL,
             max_tokens=config.HACKER_MAX_TOKENS,
+            timeout_ms=45000,
             messages=[
                 {"role": "system", "content": FINDER_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt}
@@ -120,38 +121,57 @@ Identify ALL vulnerabilities. Output ONLY a JSON array. No markdown. No explanat
         if raw_output.endswith("```"):
             raw_output = raw_output[:-3]
         raw_output = raw_output.strip()
+
+        def _safe_parse(text: str):
+            """Try json.loads, then fall back to ast-based repair."""
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                # Replace unescaped newlines inside strings and retry
+                import re
+                # Remove literal newlines inside JSON string values
+                cleaned = re.sub(r'(?<!\\)\n', ' ', text)
+                try:
+                    return json.loads(cleaned)
+                except json.JSONDecodeError:
+                    return None
         
         # Parse JSON
-        try:
-            findings_json = json.loads(raw_output)
-        except json.JSONDecodeError as e:
-            logger.warning(f"First JSON parse failed: {e}. Retrying with stricter prompt...")
-            
-            # Retry with stricter prompt
-            retry_prompt = f"{user_prompt}\n\nIMPORTANT: Your previous response was not valid JSON. Output ONLY a JSON array starting with [ and ending with ]. No text before or after."
-            
+        findings_json = _safe_parse(raw_output)
+        if findings_json is None:
+            logger.warning("First JSON parse failed. Retrying with stricter prompt...")
+            retry_prompt = f"{user_prompt}\n\nIMPORTANT: Output ONLY a valid JSON array. Escape all special characters inside strings. No unescaped quotes or newlines inside string values."
             response = client.chat.complete(
                 model=config.HACKER_MODEL,
                 max_tokens=config.HACKER_MAX_TOKENS,
+                timeout_ms=45000,
                 messages=[
                     {"role": "system", "content": FINDER_SYSTEM_PROMPT},
                     {"role": "user", "content": retry_prompt}
                 ]
             )
-            
             raw_output = response.choices[0].message.content.strip()
-            if raw_output.startswith("```json"):
-                raw_output = raw_output[7:]
-            elif raw_output.startswith("```"):
-                raw_output = raw_output[3:]
+            for fence in ["```json", "```"]:
+                if raw_output.startswith(fence):
+                    raw_output = raw_output[len(fence):]
             if raw_output.endswith("```"):
                 raw_output = raw_output[:-3]
             raw_output = raw_output.strip()
-            
-            try:
-                findings_json = json.loads(raw_output)
-            except json.JSONDecodeError as e2:
-                logger.error(f"Second JSON parse failed: {e2}. Returning empty list.")
+            findings_json = _safe_parse(raw_output)
+
+        if findings_json is None:
+            # Last resort: regex-extract individual objects
+            import re
+            objects = re.findall(r'\{[^{}]+\}', raw_output, re.DOTALL)
+            if objects:
+                findings_json = []
+                for obj in objects:
+                    parsed = _safe_parse(obj)
+                    if parsed:
+                        findings_json.append(parsed)
+                logger.info(f"Regex extraction recovered {len(findings_json)} findings")
+            else:
+                logger.error("All JSON parse attempts failed. Returning empty list.")
                 return []
         
         # Convert to Pydantic models

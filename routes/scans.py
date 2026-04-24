@@ -131,10 +131,10 @@ async def list_scans(repo_id: Optional[int] = None, limit: int = 20):
     """
     db = SessionLocal()
     try:
-        query = db.query(Scan).order_by(Scan.created_at.desc()).limit(limit)
+        query = db.query(Scan).order_by(Scan.created_at.desc())
         if repo_id:
             query = query.filter(Scan.repo_id == repo_id)
-        scans = query.all()
+        scans = query.limit(limit).all()
         return [_scan_to_dict(s) for s in scans]
     finally:
         db.close()
@@ -157,36 +157,38 @@ async def get_scan(scan_id: int):
 
 @router.post("/api/scans/trigger")
 async def trigger_manual_scan(repo_id: int):
-    """
-    Manually trigger a scan on a repository's latest commit.
-    Useful for testing without webhooks.
-    """
+    """Manually trigger a scan on a repository's latest commit."""
     from orchestrator import run_aegis_pipeline
-    import requests
-    
+    from fastapi import HTTPException
+    import threading, traceback
+
     db = SessionLocal()
     try:
         repo = db.query(Repo).filter(Repo.id == repo_id).first()
         if not repo:
-            return {"error": "Repository not found"}, 404
-        
-        # Get latest commit from GitHub using PyGithub
-        try:
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        # Get latest commit — run in thread to avoid blocking event loop
+        def _fetch():
             from github import Github
-            import config
             g = Github(config.GITHUB_TOKEN)
-            github_repo = g.get_repo(repo.full_name)
-            default_branch = github_repo.default_branch
-            commit_sha = github_repo.get_branch(default_branch).commit.sha
-            
-            # Get files changed in this commit
-            commit = github_repo.get_commit(commit_sha)
-            files_changed = [f.filename for f in commit.files]
-        except Exception as gh_err:
+            gr = g.get_repo(repo.full_name)
+            branch = gr.default_branch
+            sha = gr.get_branch(branch).commit.sha
+            files = [f.filename for f in gr.get_commit(sha).files]
+            return branch, sha, files
+
+        import concurrent.futures, asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                default_branch, commit_sha, files_changed = await asyncio.wait_for(
+                    loop.run_in_executor(ex, _fetch), timeout=15
+                )
+        except (asyncio.TimeoutError, Exception) as gh_err:
             logger.error(f"GitHub API error: {gh_err}")
             return {"error": "Failed to fetch commit", "details": str(gh_err)}, 500
-        
-        # Create push info
+
         push_info = {
             "repo_name": repo.full_name,
             "repo_url": f"https://github.com/{repo.full_name}.git",
@@ -195,33 +197,60 @@ async def trigger_manual_scan(repo_id: int):
             "files_changed": files_changed,
             "is_pr": False,
         }
-        
+
         logger.info(f"Manual scan triggered for {repo.full_name} @ {commit_sha[:8]}")
-        
-        # Run pipeline in background with error handling
-        import threading
-        import traceback
-        
-        def run_with_error_handling():
+
+        def _run():
             try:
                 logger.info(f"Starting pipeline thread for {repo.full_name}")
                 run_aegis_pipeline(push_info)
                 logger.info(f"Pipeline thread completed for {repo.full_name}")
             except Exception as e:
-                logger.error(f"Pipeline thread error: {e}")
-                logger.error(traceback.format_exc())
-        
-        thread = threading.Thread(target=run_with_error_handling)
-        thread.daemon = True
-        thread.start()
-        logger.info(f"Pipeline thread started (thread ID: {thread.ident})")
-        
-        return {
-            "message": "Scan triggered successfully",
-            "repo": repo.full_name,
-            "commit": commit_sha[:8],
-            "files": files_changed
+                logger.error(f"Pipeline thread error: {e}\n{traceback.format_exc()}")
+
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
+        logger.info(f"Pipeline thread started (thread ID: {t.ident})")
+
+        return {"message": "Scan triggered successfully", "repo": repo.full_name,
+                "commit": commit_sha[:8], "files": files_changed}
+    finally:
+        db.close()
+
+
+@router.post("/api/scans/trigger-direct")
+async def trigger_direct_scan(repo_id: int, commit_sha: str, branch: str = "main"):
+    """Trigger a scan directly with a known commit SHA — no GitHub API call needed."""
+    from orchestrator import run_aegis_pipeline
+    from fastapi import HTTPException
+    import threading, traceback
+
+    db = SessionLocal()
+    try:
+        repo = db.query(Repo).filter(Repo.id == repo_id).first()
+        if not repo:
+            raise HTTPException(status_code=404, detail="Repository not found")
+
+        push_info = {
+            "repo_name": repo.full_name,
+            "repo_url": f"https://github.com/{repo.full_name}.git",
+            "commit_sha": commit_sha,
+            "branch": branch,
+            "files_changed": ["app.py"],
+            "is_pr": False,
         }
+
+        logger.info(f"Direct scan triggered for {repo.full_name} @ {commit_sha[:8]}")
+
+        def _run():
+            try:
+                run_aegis_pipeline(push_info)
+                logger.info(f"Pipeline completed for {repo.full_name}")
+            except Exception as e:
+                logger.error(f"Pipeline error: {e}\n{traceback.format_exc()}")
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {"message": "Scan triggered", "repo": repo.full_name, "commit": commit_sha[:8]}
     finally:
         db.close()
 

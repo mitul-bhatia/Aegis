@@ -268,13 +268,13 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData().finally(() => setLoading(false));
 
-    // SSE live feed
+    // SSE live feed — merge updates to preserve full scan data
     const es = api.connectLiveFeed((scanData) => {
       setScans((prev) => {
         const idx = prev.findIndex((s) => s.id === scanData.id);
         if (idx >= 0) {
           const updated = [...prev];
-          updated[idx] = scanData;
+          updated[idx] = { ...updated[idx], ...scanData };
           return updated;
         }
         return [scanData, ...prev];

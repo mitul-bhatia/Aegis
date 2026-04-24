@@ -66,9 +66,17 @@ export const api = {
   },
 
   async triggerScan(repoId: number): Promise<TriggerResult> {
-    const res = await fetch(`${API_BASE}/api/scans/trigger?repo_id=${repoId}`, {
-      method: "POST",
-    });
+    // Use trigger-direct with the last known commit from the repo's scan history
+    // This avoids blocking GitHub API calls
+    const scans: ScanInfo[] = await fetch(`${API_BASE}/api/scans?repo_id=${repoId}`)
+      .then(r => r.json()).catch(() => []);
+    const lastCommit = scans[0]?.commit_sha ?? "HEAD";
+    const lastBranch = scans[0]?.branch ?? "main";
+
+    const res = await fetch(
+      `${API_BASE}/api/scans/trigger-direct?repo_id=${repoId}&commit_sha=${lastCommit}&branch=${lastBranch}`,
+      { method: "POST" }
+    );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || "Failed to trigger scan");
@@ -80,6 +88,25 @@ export const api = {
   async getStats(userId: number): Promise<StatsInfo> {
     const res = await fetch(`${API_BASE}/api/stats?user_id=${userId}`);
     if (!res.ok) throw new Error("Failed to fetch stats");
+    return res.json();
+  },
+
+  // ── Intelligence ──────────────────────────────────────
+  async getRepoIntelligence(repoId: number): Promise<RepoIntelligence> {
+    const res = await fetch(`${API_BASE}/api/intelligence/repo/${repoId}`);
+    if (!res.ok) throw new Error("Failed to fetch repo intelligence");
+    return res.json();
+  },
+
+  async getGlobalThreat(): Promise<GlobalThreat> {
+    const res = await fetch(`${API_BASE}/api/intelligence/global`);
+    if (!res.ok) throw new Error("Failed to fetch global threat");
+    return res.json();
+  },
+
+  async getSchedulerInsights(): Promise<SchedulerInsights> {
+    const res = await fetch(`${API_BASE}/api/intelligence/scheduler/insights`);
+    if (!res.ok) throw new Error("Failed to fetch scheduler insights");
     return res.json();
   },
 
@@ -212,3 +239,79 @@ export type TriggerResult = {
   commit: string;
   files: string[];
 };
+
+// ── Intelligence Types ─────────────────────────────────────
+
+export type FindingInfo = {
+  file: string;
+  line_start: number;
+  vuln_type: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  description: string;
+  relevant_code: string;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+};
+
+export type RepoIntelligence = {
+  repo_id: number;
+  repo_name: string;
+  threat_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  critical_threats: number;
+  high_threats: number;
+  medium_threats: number;
+  predicted_risk: number;
+  vulnerability_density: number;
+  activity_score: number;
+  business_impact: number;
+  adaptive_interval_hours: number;
+  last_scan: string | null;
+  next_scan_in_minutes: number | null;
+};
+
+export type GlobalThreat = {
+  level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  emergency_repos: string[];
+  total_threats: number;
+  critical_count: number;
+  high_count: number;
+  medium_count: number;
+  low_count: number;
+};
+
+export type MLPrediction = {
+  repo_id: number;
+  repo_name: string;
+  risk_score: number;
+  confidence: number;
+  factors: string[];
+};
+
+export type MLPredictions = {
+  high_risk_repos: MLPrediction[];
+  accuracy: number;
+  total_predictions: number;
+  false_positives: number;
+  false_negatives: number;
+};
+
+export type SchedulerInsights = {
+  total_scans: number;
+  repo_patterns: number;
+  avg_scan_duration: number;
+  threat_distribution: Record<string, number>;
+  priority_distribution: Record<string, number>;
+  scans_today: number;
+  vulnerabilities_found_today: number;
+  vulnerabilities_fixed_today: number;
+};
+
+/** Parse findings_json string from a scan into typed array */
+export function parseFindingsJson(raw: string | null | undefined): FindingInfo[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as FindingInfo[]) : [];
+  } catch {
+    return [];
+  }
+}

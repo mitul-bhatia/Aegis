@@ -3,13 +3,20 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, type ScanInfo, type ScanStatus, isActiveScan } from "@/lib/api";
+import {
+  api,
+  type ScanInfo,
+  type ScanStatus,
+  isActiveScan,
+  parseFindingsJson,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { PipelineTimeline } from "@/components/PipelineTimeline";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { LiveTimer } from "@/components/LiveTimer";
 import ExploitTerminal from "@/components/ExploitTerminal";
 import CodeDiff from "@/components/CodeDiff";
+import { FindingsPanel } from "@/components/FindingsPanel";
 import {
   Shield,
   ArrowLeft,
@@ -22,6 +29,7 @@ import {
   XCircle,
   Loader2,
   Sparkles,
+  Zap,
 } from "lucide-react";
 
 // ── Severity badge ────────────────────────────────────────
@@ -44,16 +52,16 @@ function SeverityBadge({ severity }: { severity: string | null }) {
 // ── Status badge ──────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    queued:            { label: "Queued",           cls: "bg-white/5 text-muted-foreground border-white/10" },
-    scanning:          { label: "Scanning",         cls: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
-    exploiting:        { label: "Exploiting",       cls: "bg-red-500/15 text-red-400 border-red-500/30 status-pulse" },
-    exploit_confirmed: { label: "Exploit Found",    cls: "bg-red-500/15 text-red-400 border-red-500/30" },
-    patching:          { label: "Patching",         cls: "bg-amber-500/15 text-amber-400 border-amber-500/30 status-pulse" },
-    verifying:         { label: "Verifying",        cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 status-pulse" },
-    fixed:             { label: "Fixed",            cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-    false_positive:    { label: "False Positive",   cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-    clean:             { label: "Clean",            cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-    failed:            { label: "Failed",           cls: "bg-red-500/15 text-red-400 border-red-500/30" },
+    queued:            { label: "Queued",        cls: "bg-white/5 text-muted-foreground border-white/10" },
+    scanning:          { label: "Scanning",      cls: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+    exploiting:        { label: "Exploiting",    cls: "bg-red-500/15 text-red-400 border-red-500/30 status-pulse" },
+    exploit_confirmed: { label: "Exploit Found", cls: "bg-red-500/20 text-red-300 border-red-500/50 font-bold" },
+    patching:          { label: "Patching",      cls: "bg-amber-500/15 text-amber-400 border-amber-500/30 status-pulse" },
+    verifying:         { label: "Verifying",     cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 status-pulse" },
+    fixed:             { label: "Fixed",         cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+    false_positive:    { label: "False Positive",cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+    clean:             { label: "Clean",         cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+    failed:            { label: "Failed",        cls: "bg-red-500/15 text-red-400 border-red-500/30" },
   };
   const c = map[status] ?? { label: status, cls: "bg-white/5 text-muted-foreground border-white/10" };
   return (
@@ -63,7 +71,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// ── Agent Working Panel (right panel when active) ─────────
+// ── Agent Working Panel ───────────────────────────────────
 function AgentWorkingPanel({ scan }: { scan: ScanInfo }) {
   const agent = scan.current_agent as "finder" | "exploiter" | "engineer" | "verifier" | null;
   if (!agent) return null;
@@ -83,63 +91,97 @@ function AgentWorkingPanel({ scan }: { scan: ScanInfo }) {
   );
 }
 
-// ── Right panel (context-aware) ───────────────────────────
+// ── Exploit Confirmed — dramatic moment ───────────────────
+function ExploitConfirmedBanner({ scan }: { scan: ScanInfo }) {
+  return (
+    <div className="rounded-xl border border-red-500/40 bg-red-500/8 p-5 aegis-glow-red">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="h-10 w-10 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center">
+          <Zap className="h-5 w-5 text-red-400" />
+        </div>
+        <div>
+          <p className="font-bold text-red-400">Exploit Confirmed</p>
+          <p className="text-xs text-muted-foreground">
+            {scan.vulnerability_type} proven exploitable in Docker sandbox
+          </p>
+        </div>
+      </div>
+      {scan.exploit_output && (
+        <ExploitTerminal
+          output={scan.exploit_output}
+          exploitScript={scan.exploit_script}
+          status="vulnerable"
+          title="Live Exploit — Docker Sandbox"
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Right panel (context-aware by status) ────────────────
 function ActivePanel({ scan }: { scan: ScanInfo }) {
   const status = scan.status;
 
-  // In-progress — show current agent working
+  // Exploit just confirmed — dramatic moment
+  if (status === "exploit_confirmed") {
+    return <ExploitConfirmedBanner scan={scan} />;
+  }
+
+  // Still scanning/exploiting with no output yet
   if (isActiveScan(status as ScanStatus) && !scan.exploit_output && !scan.patch_diff) {
     return <AgentWorkingPanel scan={scan} />;
   }
 
-  // Exploiting / confirmed — show terminal (even if still patching)
-  const showTerminal = scan.exploit_output;
-  // Patching done — show diff
-  const showDiff = (status === "fixed" || status === "verifying") && scan.original_code && scan.patch_diff;
-  // Still patching, no diff yet
-  const stillPatching = (status === "patching" || status === "verifying") && !scan.patch_diff;
-
-  return (
-    <div className="space-y-4">
-      {showTerminal && (
-        <ExploitTerminal
-          output={scan.exploit_output!}
-          status={
-            status === "fixed" || status === "verifying" ? "vulnerable"
-            : status === "false_positive" ? "not_vulnerable"
-            : status === "exploiting" ? "running"
-            : "vulnerable"
-          }
-          isStreaming={status === "exploiting"}
-        />
-      )}
-
-      {stillPatching && (
+  // Patching — show terminal + agent working
+  if (status === "patching") {
+    return (
+      <div className="space-y-4">
+        {scan.exploit_output && (
+          <ExploitTerminal
+            output={scan.exploit_output}
+            exploitScript={scan.exploit_script}
+            status="vulnerable"
+          />
+        )}
         <AgentWorkingPanel scan={scan} />
-      )}
+      </div>
+    );
+  }
 
-      {showDiff && (
-        <CodeDiff
-          before={scan.original_code!}
-          after={scan.patch_diff!}
-          filename={scan.vulnerable_file ?? "vulnerable_file"}
-          language="python"
-        />
-      )}
+  // Verifying — show terminal + diff if available
+  if (status === "verifying") {
+    return (
+      <div className="space-y-4">
+        {scan.exploit_output && (
+          <ExploitTerminal
+            output={scan.exploit_output}
+            exploitScript={scan.exploit_script}
+            status="vulnerable"
+          />
+        )}
+        {scan.original_code && scan.patch_diff ? (
+          <CodeDiff
+            before={scan.original_code}
+            after={scan.patch_diff}
+            filename={scan.vulnerable_file ?? "patch"}
+            language="python"
+          />
+        ) : (
+          <AgentWorkingPanel scan={scan} />
+        )}
+      </div>
+    );
+  }
 
-      {/* Fallback for in-progress without data yet */}
-      {!showTerminal && !showDiff && !stillPatching && isActiveScan(status as ScanStatus) && (
-        <AgentWorkingPanel scan={scan} />
-      )}
-    </div>
-  );
+  // Fallback for other active states
+  return <AgentWorkingPanel scan={scan} />;
 }
 
 // ── PR Result Card ────────────────────────────────────────
 function PRResultCard({ scan }: { scan: ScanInfo }) {
   if (!scan.pr_url) return null;
   return (
-    <div className="aegis-gradient-border rounded-xl p-px mt-4">
+    <div className="aegis-gradient-border rounded-xl p-px">
       <div className="rounded-xl bg-card p-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -166,7 +208,7 @@ function PRResultCard({ scan }: { scan: ScanInfo }) {
   );
 }
 
-// ── Clean / False Positive result card ───────────────────
+// ── Terminal result cards ─────────────────────────────────
 function ResultCard({ scan }: { scan: ScanInfo }) {
   if (scan.status === "clean") {
     return (
@@ -217,29 +259,25 @@ export default function ScanDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchScan() {
-      try {
-        const data = await api.getScan(scanId);
-        setScan(data);
-      } catch {
-        // handled by null check
-      } finally {
-        setLoading(false);
+    // Initial fetch
+    api.getScan(scanId)
+      .then(setScan)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+
+    // Use SSE for live updates — merge to preserve fields not in SSE payload
+    const es = api.connectLiveFeed((data) => {
+      if (data.id === scanId) {
+        setScan(prev => prev ? { ...prev, ...data } : data);
+        // When scan reaches terminal state, do a full REST fetch to get all fields
+        // (exploit_script, original_code, patch_diff, findings_json not in SSE)
+        if (["fixed", "failed", "false_positive", "clean"].includes(data.status)) {
+          api.getScan(scanId).then(setScan).catch(() => {});
+        }
       }
-    }
+    });
 
-    fetchScan();
-
-    // Poll every 2s while active, stop on terminal state
-    const interval = setInterval(async () => {
-      const data = await api.getScan(scanId).catch(() => null);
-      if (data) {
-        setScan(data);
-        if (!isActiveScan(data.status as ScanStatus)) clearInterval(interval);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
+    return () => es.close();
   }, [scanId]);
 
   if (loading) {
@@ -269,10 +307,11 @@ export default function ScanDetailPage() {
 
   const active = isActiveScan(scan.status as ScanStatus);
   const showResultCard = ["clean", "false_positive", "failed"].includes(scan.status);
+  const findings = parseFindingsJson(scan.findings_json);
 
   return (
     <div className="min-h-screen">
-      {/* ── Sticky Header ── */}
+      {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
@@ -308,7 +347,6 @@ export default function ScanDetailPage() {
         </div>
       </header>
 
-      {/* ── Main Layout ── */}
       <main className="mx-auto max-w-7xl px-6 py-8">
         {/* Meta row */}
         <div className="mb-6 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
@@ -331,8 +369,9 @@ export default function ScanDetailPage() {
 
         {/* Two-panel layout */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
-          {/* ── Left: Pipeline Timeline ── */}
-          <div className="space-y-6">
+
+          {/* Left: Pipeline + findings */}
+          <div className="space-y-4">
             <div className="rounded-xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm">
               <h2 className="mb-5 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                 Agent Pipeline
@@ -340,21 +379,31 @@ export default function ScanDetailPage() {
               <PipelineTimeline scan={scan} />
             </div>
 
-            {/* Result cards for terminal states */}
+            {/* All findings from Finder */}
+            {findings.length > 0 && (
+              <FindingsPanel
+                findings={findings}
+                confirmedVulnType={scan.vulnerability_type}
+              />
+            )}
+
             {showResultCard && <ResultCard scan={scan} />}
           </div>
 
-          {/* ── Right: Active Content ── */}
+          {/* Right: Active content */}
           <div className="space-y-4">
-            {/* Active panel (terminal, diff, or agent working) */}
-            {!showResultCard && <ActivePanel scan={scan} />}
+            {/* Active states */}
+            {!showResultCard && scan.status !== "fixed" && (
+              <ActivePanel scan={scan} />
+            )}
 
-            {/* Show terminal + diff stacked when fixed */}
+            {/* Fixed: full story — terminal + diff + PR */}
             {scan.status === "fixed" && (
               <>
                 {scan.exploit_output && (
                   <ExploitTerminal
                     output={scan.exploit_output}
+                    exploitScript={scan.exploit_script}
                     status="vulnerable"
                     title="Exploit Proof — Docker Sandbox"
                   />
@@ -371,16 +420,17 @@ export default function ScanDetailPage() {
               </>
             )}
 
-            {/* Fallback: show false positive terminal */}
+            {/* False positive terminal */}
             {scan.status === "false_positive" && scan.exploit_output && (
               <ExploitTerminal
                 output={scan.exploit_output}
+                exploitScript={scan.exploit_script}
                 status="not_vulnerable"
                 title="Exploit Output — Not Confirmed"
               />
             )}
 
-            {/* Error message */}
+            {/* Failed error */}
             {scan.status === "failed" && scan.error_message && (
               <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
                 <p className="text-xs font-mono text-red-400 whitespace-pre-wrap">{scan.error_message}</p>

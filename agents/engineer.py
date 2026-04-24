@@ -73,6 +73,7 @@ Output a JSON object with "patched_code" and "test_code". No markdown. No explan
     response = client.chat.complete(
         model=config.ENGINEER_MODEL,
         max_tokens=config.ENGINEER_MAX_TOKENS,
+        timeout_ms=60000,
         messages=[
             {"role": "system", "content": ENGINEER_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt}

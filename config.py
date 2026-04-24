@@ -60,6 +60,9 @@ ENGINEER_MAX_TOKENS = 3000    # Max output tokens for patch generation
 RAG_TOP_K = 5                 # Number of related files to retrieve
 RAG_DISTANCE_THRESHOLD = 1.5  # Max distance for relevant results
 
+# ── Demo Mode ─────────────────────────────────────────────
+DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+
 # ── File Types ────────────────────────────────────────────
 CODE_EXTENSIONS = {".py", ".js", ".ts", ".java", ".go", ".rb", ".php"}
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "dist", "build"}

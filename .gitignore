@@ -15,6 +15,17 @@ build/
 # Aegis runtime data
 aegis_vector_db/
 repos/
+aegis.db
+*.db
+*.log
+backend.log
+frontend.log
+aegis-frontend/lint-output.txt
+aegis-frontend/frontend.log
+out.err
+out.json
+semgrep.stderr
+semgrep.stdout
 
 # Docker
 *.tar

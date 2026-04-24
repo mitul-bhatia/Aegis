@@ -49,7 +49,8 @@ const PIPELINE_STEPS: PipelineStep[] = [
     getDetail: (scan) => {
       if (["verifying", "fixed"].includes(scan.status)) {
         const attempts = scan.patch_attempts ?? 1;
-        return `Patch generated${attempts > 1 ? ` (${attempts} attempt${attempts > 1 ? "s" : ""})` : ""}`;
+        if (attempts > 1) return `Patch generated after ${attempts} attempts`;
+        return "Patch generated";
       }
       return null;
     },
@@ -182,6 +183,23 @@ function PipelineStepRow({ step, state, scan }: StepProps) {
   );
 }
 
+// ── Retry Loop Indicator ─────────────────────────────────
+function RetryLoopIndicator({ attempts }: { attempts: number }) {
+  if (attempts <= 1) return null;
+  return (
+    <div className="ml-[19px] flex items-center gap-2 py-1">
+      <div className="relative w-px">
+        {/* Dashed loop-back line */}
+        <div className="absolute left-0 top-0 bottom-0 border-l-2 border-dashed border-amber-500/40" />
+      </div>
+      <div className="flex items-center gap-1.5 rounded-md border border-amber-500/25 bg-amber-500/8 px-2 py-1 text-xs text-amber-400">
+        <span className="font-mono">↺</span>
+        <span>Verifier rejected patch — Engineer retried ×{attempts - 1}</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Main PipelineTimeline ─────────────────────────────────
 interface PipelineTimelineProps {
   scan: ScanInfo;
@@ -200,10 +218,12 @@ export function PipelineTimeline({ scan, className }: PipelineTimelineProps) {
       {stepsToShow.map((step, idx) => {
         const state = getStepState(step, scan);
         const isLast = idx === stepsToShow.length - 1;
+        const showRetry = step.id === "engineer" && (scan.patch_attempts ?? 0) > 1;
 
         return (
           <div key={step.id}>
             <PipelineStepRow step={step} state={state} scan={scan} />
+            {showRetry && <RetryLoopIndicator attempts={scan.patch_attempts ?? 1} />}
             {!isLast && (
               <ConnectorLine
                 filled={state === "done"}

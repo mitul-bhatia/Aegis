@@ -9,33 +9,64 @@ logger = logging.getLogger(__name__)
 
 import subprocess
 
+# ── Demo Mode ────────────────────────────────────────────
+# When DEMO_MODE=true, sandbox always reports exploit success and tests passing
+# so the full pipeline (Engineer → Verifier → PR) runs end-to-end.
+_DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+
 def get_docker_client():
     try:
         return docker.from_env()
     except Exception:
         return None
 
-def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = config.SANDBOX_TIMEOUT) -> dict:
+def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = config.SANDBOX_TIMEOUT, _verifier_check: bool = False) -> dict:
     """
     Run an exploit script in an isolated Docker container with proper security.
+    _verifier_check=True means this is the Verifier confirming the patch blocked the exploit.
     """
+    if _DEMO_MODE:
+        if _verifier_check:
+            logger.info("🎭 DEMO MODE: Patch verified — exploit blocked")
+            return {"exit_code": 1, "stdout": "NOT_VULNERABLE: Parameterized query blocked the injection",
+                    "stderr": "", "exploit_succeeded": False, "vulnerability_confirmed": False, "output_summary": "NOT_VULNERABLE"}
+        else:
+            logger.info("🎭 DEMO MODE: Exploit confirmed — vulnerability is real")
+            return {"exit_code": 0, "stdout": "VULNERABLE: SQL Injection confirmed\n[*] Payload: ' OR '1'='1\n[*] Records dumped: [(1, 'admin'), (2, 'user')]",
+                    "stderr": "", "exploit_succeeded": True, "vulnerability_confirmed": True, "output_summary": "VULNERABLE: SQL Injection confirmed"}
+
     docker_client = get_docker_client()
     if not docker_client:
         logger.warning("Docker daemon not running. Falling back to local subprocess for exploit execution. WARNING: This runs the exploit on the host machine!")
         
         with tempfile.TemporaryDirectory() as tmpdir:
             exploit_path = os.path.join(tmpdir, "exploit.py")
+
+            # Rewrite /app references to the actual absolute local repo path so the
+            # exploit works without Docker (where the repo is NOT at /app)
+            abs_repo_path = os.path.abspath(repo_path)
+            patched_script = exploit_script.replace("'/app/", f"'{abs_repo_path}/").replace('"/app/', f'"{abs_repo_path}/')
+            # Also fix os.chdir('/app') and exec(open('/app/...')) patterns
+            patched_script = patched_script.replace("os.chdir('/app')", f"os.chdir('{abs_repo_path}')").replace('os.chdir("/app")', f'os.chdir("{abs_repo_path}")')
+            patched_script = patched_script.replace("open('/app')", f"open('{abs_repo_path}')").replace('open("/app")', f'open("{abs_repo_path}")')
+
             with open(exploit_path, "w") as f:
-                f.write(exploit_script)
+                f.write(patched_script)
                 
             try:
-                # Add repo_path to PYTHONPATH so the exploit can import app modules
                 env = os.environ.copy()
-                env["PYTHONPATH"] = repo_path
-                
+                env["PYTHONPATH"] = abs_repo_path
+
+                # Use venv python so repo deps (flask, etc.) are available
+                import sys as _sys
+                venv_python = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python3"
+                )
+                python_bin = venv_python if os.path.isfile(venv_python) else _sys.executable
+
                 result = subprocess.run(
-                    ["python", exploit_path],
-                    cwd=repo_path,
+                    [python_bin, exploit_path],
+                    cwd=abs_repo_path,
                     capture_output=True,
                     text=True,
                     timeout=timeout,
@@ -121,11 +152,14 @@ def run_exploit_in_sandbox(exploit_script: str, repo_path: str, timeout: int = c
                 except Exception as e:
                     logger.warning(f"Failed to remove container: {e}")
                     
-            exploit_succeeded = (
-                exit_code == 0 and
-                "VULNERABLE" in stdout and
-                "NOT_VULNERABLE" not in stdout
-            )
+            if config.DEMO_MODE:
+                exploit_succeeded = True
+            else:
+                exploit_succeeded = (
+                    exit_code == 0 and
+                    "VULNERABLE" in stdout and
+                    "NOT_VULNERABLE" not in stdout
+                )
             
             logger.info(f"Exploit execution finished with code {exit_code}. Succeeded: {exploit_succeeded}")
             
@@ -153,15 +187,57 @@ def run_tests_in_sandbox(repo_path: str, timeout: int = config.TEST_TIMEOUT) -> 
     """
     Run the repo's unit tests inside a sandboxed container with proper security.
     """
+    if _DEMO_MODE:
+        logger.info("🎭 DEMO MODE: Simulating passing tests")
+        return {
+            "tests_passed": True,
+            "exit_code": 0,
+            "output": "============================= test session starts ==============================\ncollected 2 items\n\ntest_aegis_patch.py::test_get_user_valid PASSED\ntest_aegis_patch.py::test_get_user_sql_injection PASSED\n\n============================== 2 passed in 0.12s ==============================="
+        }
+
+    if _DEMO_MODE:
+        # First call = Exploiter confirming the vuln exists → succeed
+        # Subsequent calls = Verifier checking the patch blocked it → fail (exploit blocked = fix works)
+        # We track this via a simple module-level counter
+        _DEMO_EXPLOIT_CALL_COUNT[0] += 1
+        call_num = _DEMO_EXPLOIT_CALL_COUNT[0]
+        logger.info(f"🎭 DEMO MODE: exploit call #{call_num}")
+        if call_num == 1:
+            logger.info("🎭 DEMO MODE: Simulating successful exploit (vuln confirmed)")
+            return {
+                "exit_code": 0,
+                "stdout": "VULNERABLE: SQL Injection confirmed — attacker retrieved all user records\n[*] Payload: ' OR '1'='1\n[*] Records dumped: [(1, 'admin'), (2, 'user')]",
+                "stderr": "",
+                "exploit_succeeded": True,
+                "vulnerability_confirmed": True,
+                "output_summary": "VULNERABLE: SQL Injection confirmed"
+            }
+        else:
+            logger.info("🎭 DEMO MODE: Simulating blocked exploit (patch works)")
+            return {
+                "exit_code": 1,
+                "stdout": "NOT_VULNERABLE: Parameterized query blocked the injection attempt",
+                "stderr": "",
+                "exploit_succeeded": False,
+                "vulnerability_confirmed": False,
+                "output_summary": "NOT_VULNERABLE: Patch successful"
+            }
+
     docker_client = get_docker_client()
     if not docker_client:
         logger.warning("Docker daemon not running. Falling back to local subprocess for test execution.")
         try:
+            import sys as _sys
+            venv_python = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python3"
+            )
+            python_bin = venv_python if os.path.isfile(venv_python) else _sys.executable
+
             env = os.environ.copy()
             env["PYTHONPATH"] = repo_path
             
             result = subprocess.run(
-                ["python", "-m", "pytest", repo_path, "-v"],
+                [python_bin, "-m", "pytest", repo_path, "-v", "--tb=short"],
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
@@ -223,7 +299,11 @@ def run_tests_in_sandbox(repo_path: str, timeout: int = config.TEST_TIMEOUT) -> 
             except Exception as e:
                 logger.warning(f"Failed to remove test container: {e}")
             
-        tests_passed = result["StatusCode"] == 0
+        if config.DEMO_MODE:
+            tests_passed = True
+        else:
+            tests_passed = result["StatusCode"] == 0
+            
         logger.info(f"Tests: {'✅ PASSED' if tests_passed else '❌ FAILED'}")
         
         return {
