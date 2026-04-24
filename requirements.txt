@@ -6,7 +6,10 @@ uvicorn>=0.24.0
 # Environment
 python-dotenv>=1.0.0
 
-# AI / LLM (Mistral — Devstral 2 + Codestral)
+# AI / LLM
+# Groq (Finder + Exploiter agents — ultra-fast LPU inference)
+groq>=0.4.0
+# Mistral (Engineer agent — devstral for quality patches)
 mistralai>=1.0.0
 
 # RAG / Vector DB

@@ -1,19 +1,15 @@
-"""
-Agent 1 — Finder
-Reads diff + RAG context → identifies ALL vulnerabilities with severity, file, line, type
-"""
 import logging
 import json
 from typing import List, Dict
 from pydantic import BaseModel, Field
-from mistralai.client.sdk import Mistral
+from groq import Groq
 
 import config
 
 logger = logging.getLogger(__name__)
 
-# Initialize Mistral client
-client = Mistral(api_key=config.MISTRAL_API_KEY)
+# Initialize Groq client (ultra-fast LPU inference)
+client = Groq(api_key=config.GROQ_API_KEY)
 
 
 class VulnerabilityFinding(BaseModel):
@@ -97,14 +93,14 @@ def run_finder_agent(diff: Dict, semgrep_findings: List[Dict], rag_context: str)
 
 Identify ALL vulnerabilities. Output ONLY a JSON array. No markdown. No explanation."""
 
-    logger.info(f"Agent 1 (Finder) analyzing code with {config.HACKER_MODEL}...")
+    logger.info(f"Agent 1 (Finder) analyzing code with Groq/{config.HACKER_MODEL}...")
     
     try:
-        # Call Mistral API
-        response = client.chat.complete(
+        # Call Groq API (OpenAI-compatible, ultra-fast)
+        response = client.chat.completions.create(
             model=config.HACKER_MODEL,
             max_tokens=config.HACKER_MAX_TOKENS,
-            timeout_ms=45000,
+            timeout=config.HACKER_TIMEOUT_MS / 1000,  # Groq uses seconds
             messages=[
                 {"role": "system", "content": FINDER_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt}
@@ -141,10 +137,10 @@ Identify ALL vulnerabilities. Output ONLY a JSON array. No markdown. No explanat
         if findings_json is None:
             logger.warning("First JSON parse failed. Retrying with stricter prompt...")
             retry_prompt = f"{user_prompt}\n\nIMPORTANT: Output ONLY a valid JSON array. Escape all special characters inside strings. No unescaped quotes or newlines inside string values."
-            response = client.chat.complete(
+            response = client.chat.completions.create(
                 model=config.HACKER_MODEL,
                 max_tokens=config.HACKER_MAX_TOKENS,
-                timeout_ms=45000,
+                timeout=config.HACKER_TIMEOUT_MS / 1000,
                 messages=[
                     {"role": "system", "content": FINDER_SYSTEM_PROMPT},
                     {"role": "user", "content": retry_prompt}

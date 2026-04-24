@@ -15,6 +15,7 @@ load_dotenv()
 
 # ── API Keys ──────────────────────────────────────────────
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
+GROQ_API_KEY    = os.getenv("GROQ_API_KEY", "")  # env var: GROQ_API_KEY
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
 
@@ -25,11 +26,13 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 # ── Model Settings ────────────────────────────────────────
-# Agent A (Hacker): Codestral — fast, cheap, code-focused, minimal guardrails
-HACKER_MODEL = os.getenv("HACKER_MODEL", "codestral-2508")
+# Agent A (Finder/Hacker): Groq — ultra-fast inference for analysis & exploit gen
+HACKER_MODEL  = os.getenv("HACKER_MODEL",  "llama-3.3-70b-versatile")
+HACKER_PROVIDER = "groq"   # groq | mistral
 
-# Agent B (Engineer): Devstral 2 — frontier agentic coding model
-ENGINEER_MODEL = os.getenv("ENGINEER_MODEL", "devstral-2512")
+# Agent B (Engineer): Devstral 2 — frontier agentic coding model for quality patches
+ENGINEER_MODEL    = os.getenv("ENGINEER_MODEL",    "devstral-small-2505")
+ENGINEER_PROVIDER = "mistral"  # mistral | groq
 
 # ── Server Settings ───────────────────────────────────────
 PORT = int(os.getenv("PORT", "8000"))
@@ -46,15 +49,19 @@ SEMGREP_TIMEOUT = int(os.getenv("SEMGREP_TIMEOUT", "180"))
 
 # ── Docker Sandbox Settings ───────────────────────────────
 SANDBOX_IMAGE = "aegis-sandbox:latest"  # Our custom secure sandbox image
-SANDBOX_TIMEOUT = 30          # seconds for exploit execution
+SANDBOX_TIMEOUT = int(os.getenv("SANDBOX_TIMEOUT", "30"))   # seconds for exploit execution
 SANDBOX_MEM_LIMIT = "256m"
 SANDBOX_CPU_QUOTA = 50000     # 50% of one core
-TEST_TIMEOUT = 60             # seconds for test suite execution
+TEST_TIMEOUT = int(os.getenv("TEST_TIMEOUT", "45"))         # seconds for test suite execution (was 60)
 
 # ── Agent Settings ────────────────────────────────────────
 MAX_PATCH_RETRIES = 3         # Max attempts for Agent B before escalating
 HACKER_MAX_TOKENS = 4000      # Max output tokens for exploit generation
 ENGINEER_MAX_TOKENS = 3000    # Max output tokens for patch generation
+
+# ── LLM Timeouts (ms) ─────────────────────────────────────
+HACKER_TIMEOUT_MS  = int(os.getenv("HACKER_TIMEOUT_MS",  "45000"))  # 45s for Finder/Hacker
+ENGINEER_TIMEOUT_MS = int(os.getenv("ENGINEER_TIMEOUT_MS", "90000"))  # 90s for Engineer (large output)
 
 # ── RAG Settings ──────────────────────────────────────────
 RAG_TOP_K = 5                 # Number of related files to retrieve

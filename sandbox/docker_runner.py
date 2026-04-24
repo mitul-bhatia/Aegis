@@ -195,34 +195,6 @@ def run_tests_in_sandbox(repo_path: str, timeout: int = config.TEST_TIMEOUT) -> 
             "output": "============================= test session starts ==============================\ncollected 2 items\n\ntest_aegis_patch.py::test_get_user_valid PASSED\ntest_aegis_patch.py::test_get_user_sql_injection PASSED\n\n============================== 2 passed in 0.12s ==============================="
         }
 
-    if _DEMO_MODE:
-        # First call = Exploiter confirming the vuln exists → succeed
-        # Subsequent calls = Verifier checking the patch blocked it → fail (exploit blocked = fix works)
-        # We track this via a simple module-level counter
-        _DEMO_EXPLOIT_CALL_COUNT[0] += 1
-        call_num = _DEMO_EXPLOIT_CALL_COUNT[0]
-        logger.info(f"🎭 DEMO MODE: exploit call #{call_num}")
-        if call_num == 1:
-            logger.info("🎭 DEMO MODE: Simulating successful exploit (vuln confirmed)")
-            return {
-                "exit_code": 0,
-                "stdout": "VULNERABLE: SQL Injection confirmed — attacker retrieved all user records\n[*] Payload: ' OR '1'='1\n[*] Records dumped: [(1, 'admin'), (2, 'user')]",
-                "stderr": "",
-                "exploit_succeeded": True,
-                "vulnerability_confirmed": True,
-                "output_summary": "VULNERABLE: SQL Injection confirmed"
-            }
-        else:
-            logger.info("🎭 DEMO MODE: Simulating blocked exploit (patch works)")
-            return {
-                "exit_code": 1,
-                "stdout": "NOT_VULNERABLE: Parameterized query blocked the injection attempt",
-                "stderr": "",
-                "exploit_succeeded": False,
-                "vulnerability_confirmed": False,
-                "output_summary": "NOT_VULNERABLE: Patch successful"
-            }
-
     docker_client = get_docker_client()
     if not docker_client:
         logger.warning("Docker daemon not running. Falling back to local subprocess for test execution.")

@@ -66,14 +66,18 @@ Please fix these issues in your new patch attempt."""
 
 Output a JSON object with "patched_code" and "test_code". No markdown. No explanation."""
     
-    logger.info(f"Agent 3 (Engineer) with {config.ENGINEER_MODEL}: writing patch + tests for {file_path}...")
+    # Use faster model on retries to reduce turnaround time
+    model = config.HACKER_MODEL if error_logs else config.ENGINEER_MODEL
+    timeout_ms = config.ENGINEER_TIMEOUT_MS
+    
+    logger.info(f"Agent 3 (Engineer/Mistral) attempt={'retry' if error_logs else 'first'} | model={model} | file={file_path}")
     if error_logs:
-        logger.info("This is a retry — incorporating feedback from previous failure")
+        logger.info("This is a retry — using faster Groq model for quick turnaround")
         
     response = client.chat.complete(
-        model=config.ENGINEER_MODEL,
+        model=model,
         max_tokens=config.ENGINEER_MAX_TOKENS,
-        timeout_ms=60000,
+        timeout_ms=timeout_ms,
         messages=[
             {"role": "system", "content": ENGINEER_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt}
