@@ -14,9 +14,6 @@ import {
   Plus,
   Loader2,
   CheckCircle2,
-  GitBranch,
-  Webhook,
-  Database,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -25,12 +22,23 @@ type ProgressState = "idle" | "validating" | "webhook" | "indexing" | "complete"
 export function AddRepoModal({
   userId,
   onSuccess,
+  forceOpen,
+  onForceOpenHandled,
 }: {
   userId: number;
   onSuccess: () => void;
+  forceOpen?: boolean;
+  onForceOpenHandled?: () => void;
 }) {
   const [url, setUrl] = useState("");
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (forceOpen) {
+      setOpen(true);
+      onForceOpenHandled?.();
+    }
+  }, [forceOpen, onForceOpenHandled]);
   const [state, setState] = useState<ProgressState>("idle");
   const [error, setError] = useState("");
   const [repoId, setRepoId] = useState<number | null>(null);
@@ -69,35 +77,46 @@ export function AddRepoModal({
     try {
       // Step 1: Validating
       setState("validating");
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
-      // Step 2: Installing webhook
+      // Step 2: Installing webhook + saving repo
       setState("webhook");
       const result = await api.addRepo(userId, url);
       setRepoId(result.id);
 
-      // Step 3: Indexing (will poll until complete)
-      setState("indexing");
+      // Step 3: Done! Indexing happens in the background on the backend.
+      // The dashboard will show "Setting Up" status until it completes.
+      setState("complete");
+      setTimeout(() => {
+        setOpen(false);
+        onSuccess();
+        setState("idle");
+        setUrl("");
+        setRepoId(null);
+      }, 1200);
     } catch (err: unknown) {
       setState("error");
       setError(err instanceof Error ? err.message : "Failed to add repo");
     }
   }
 
-  function handleClose() {
-    if (state === "validating" || state === "webhook" || state === "indexing") {
-      // Don't allow closing during progress
-      return;
+  function handleOpenChange(isOpen: boolean) {
+    if (!isOpen) {
+      if (state === "validating" || state === "webhook" || state === "indexing") {
+        return; // Prevent closing while processing
+      }
+      setOpen(false);
+      setState("idle");
+      setUrl("");
+      setError("");
+      setRepoId(null);
+    } else {
+      setOpen(true);
     }
-    setOpen(false);
-    setState("idle");
-    setUrl("");
-    setError("");
-    setRepoId(null);
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="gap-2 aegis-glow">
           <Plus className="h-4 w-4" />

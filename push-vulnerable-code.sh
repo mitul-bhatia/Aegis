@@ -5,7 +5,7 @@ echo "=== Pushing Vulnerable Code to Test Repo ==="
 echo ""
 
 # Configuration
-REPO_URL="https://github.com/mitu1046/aegis-test-repo.git"
+REPO_URL="https://github.com/Jivit87/aegis-pr-test.git"
 TEMP_DIR="/tmp/aegis-test-push-$$"
 GITHUB_TOKEN="${GITHUB_TOKEN}"
 
@@ -17,7 +17,7 @@ fi
 
 # Clone the repo
 echo "1. Cloning repository..."
-git clone "https://${GITHUB_TOKEN}@github.com/mitu1046/aegis-test-repo.git" "$TEMP_DIR"
+git clone "https://${GITHUB_TOKEN}@github.com/Jivit87/aegis-pr-test.git" "$TEMP_DIR"
 cd "$TEMP_DIR"
 
 # Create vulnerable Python file

@@ -39,25 +39,23 @@ def get_scheduler_status():
 
 
 @router.post("/start")
-def start_scheduler():
+async def start_scheduler():
     """Start autonomous scanning"""
     if scheduler.running:
         raise HTTPException(status_code=400, detail="Scheduler already running")
     
-    import asyncio
-    asyncio.create_task(scheduler.start())
+    await scheduler.start()
     logger.info("🚀 Autonomous scanning started via API")
     return {"message": "Autonomous scanning started"}
 
 
 @router.post("/stop")
-def stop_scheduler():
+async def stop_scheduler():
     """Stop autonomous scanning"""
     if not scheduler.running:
         raise HTTPException(status_code=400, detail="Scheduler not running")
     
-    import asyncio
-    asyncio.create_task(scheduler.stop())
+    await scheduler.stop()
     logger.info("🛑 Autonomous scanning stopped via API")
     return {"message": "Autonomous scanning stopped"}
 

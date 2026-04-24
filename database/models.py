@@ -82,6 +82,14 @@ class Scan(Base):
     pr_url = Column(String(500), nullable=True)         # GitHub PR link
     error_message = Column(Text, nullable=True)         # If pipeline failed
 
+    # Agent identity (for real-time UI — which agent is working + what it's doing)
+    original_code = Column(Text, nullable=True)         # Vulnerable code BEFORE patch (for diff view)
+    exploit_script = Column(Text, nullable=True)        # The exploit code Agent 2 generated
+    findings_json = Column(Text, nullable=True)         # JSON: all findings from Agent 1
+    current_agent = Column(String(50), nullable=True)   # 'finder' | 'exploiter' | 'engineer' | 'verifier'
+    agent_message = Column(String(500), nullable=True)  # Current agent's latest status message
+    patch_attempts = Column(Integer, default=0)         # How many Engineer retries
+
     # Timing
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)

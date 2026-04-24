@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/Users/jivitrana/Desktop/Aegis/.venv/bin/pysemgrep", line 6, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/jivitrana/Desktop/Aegis/.venv/lib/python3.14/site-packages/semgrep/console_scripts/pysemgrep.py", line 64, in main
+    sys.exit(semgrep.main.main())
+             ~~~~~~~~~~~~~~~~~^^
+  File "/Users/jivitrana/Desktop/Aegis/.venv/lib/python3.14/site-packages/semgrep/main.py", line 141, in main
+    from semgrep.cli import cli
+  File "/Users/jivitrana/Desktop/Aegis/.venv/lib/python3.14/site-packages/semgrep/cli.py", line 22, in <module>
+    from semgrep.commands.ci import ci
+  File "/Users/jivitrana/Desktop/Aegis/.venv/lib/python3.14/site-packages/semgrep/commands/ci.py", line 34, in <module>
+    import semgrep.app.auth as auth
+  File "/Users/jivitrana/Desktop/Aegis/.venv/lib/python3.14/site-packages/semgrep/app/auth.py", line 19, in <module>
+    from semgrep import telemetry
+  File "/Users/jivitrana/Desktop/Aegis/.venv/lib/python3.14/site-packages/semgrep/telemetry.py", line 38, in <module>
+    from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+  File "/Users/jivitrana/Desktop/Aegis/.venv/lib/python3.14/site-packages/opentelemetry/exporter/otlp/proto/http/_log_exporter/__init__.py", line 37, in <module>
+    from opentelemetry.sdk._logs import LogData
+ImportError: cannot import name 'LogData' from 'opentelemetry.sdk._logs' (/Users/jivitrana/Desktop/Aegis/.venv/lib/python3.14/site-packages/opentelemetry/sdk/_logs/__init__.py)

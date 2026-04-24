@@ -85,17 +85,33 @@ class AegisScheduler:
                         logger.debug(f"Skipping {repo.full_name} - already scanned today")
                         continue
                     
+                    # Fetch actual latest commit from GitHub
+                    try:
+                        from github import Github
+                        import config
+                        g = Github(config.GITHUB_TOKEN)
+                        github_repo = g.get_repo(repo.full_name)
+                        default_branch = github_repo.default_branch
+                        commit_sha = github_repo.get_branch(default_branch).commit.sha
+                        
+                        # Get files changed in this commit
+                        commit = github_repo.get_commit(commit_sha)
+                        files_changed = [f.filename for f in commit.files]
+                    except Exception as gh_err:
+                        logger.error(f"Failed to fetch latest commit for {repo.full_name}: {gh_err}")
+                        continue
+                    
                     # Create scan info for pipeline
                     scan_info = {
                         "repo_name": repo.full_name,
                         "repo_url": f"https://github.com/{repo.full_name}",
-                        "commit_sha": "latest",  # Will fetch latest from GitHub
-                        "branch": "main",
-                        "files_changed": [],  # Will fetch all files
+                        "commit_sha": commit_sha,
+                        "branch": default_branch,
+                        "files_changed": files_changed,
                         "is_autonomous": True,  # Mark as autonomous scan
                     }
                     
-                    logger.info(f"🚀 Autonomous scan: {repo.full_name}")
+                    logger.info(f"🚀 Autonomous scan: {repo.full_name} @ {commit_sha[:8]}")
                     await run_aegis_pipeline(scan_info)
                     
                 except Exception as e:

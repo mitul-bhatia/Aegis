@@ -1,0 +1,153 @@
+
+> aegis-frontend@0.1.0 lint
+> eslint
+
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/app/auth/callback/page.tsx
+  18:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/app/auth/callback/page.tsx:18:7
+  16 |     const code = searchParams.get("code");
+  17 |     if (!code) {
+> 18 |       setError("No authorization code received from GitHub.");
+     |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  19 |       return;
+  20 |     }
+  21 |  react-hooks/set-state-in-effect
+  51:13  error  Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @next/next/no-html-link-for-pages
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/app/dashboard/page.tsx
+   14:10  warning  'Badge' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+   34:3   warning  'Search' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+   35:3   warning  'Wrench' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  136:46  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-explicit-any
+  239:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/app/dashboard/page.tsx:239:5
+  237 |
+  238 |   useEffect(() => {
+> 239 |     setUserId(Number(localStorage.getItem("aegis_user_id")));
+      |     ^^^^^^^^^ Avoid calling setState() directly within an effect
+  240 |     setUsername(localStorage.getItem("aegis_username") || "");
+  241 |     setAvatarUrl(localStorage.getItem("aegis_avatar") || "");
+  242 |     setSessionReady(true);  react-hooks/set-state-in-effect
+  265:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/app/dashboard/page.tsx:265:5
+  263 |     if (!userId) { router.push("/"); return; }
+  264 |
+> 265 |     fetchData().finally(() => setLoading(false));
+      |     ^^^^^^^^^ Avoid calling setState() directly within an effect
+  266 |
+  267 |     // SSE live feed
+  268 |     const es = api.connectLiveFeed((scanData) => {                                                                   react-hooks/set-state-in-effect
+  309:46  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-explicit-any
+  310:46  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-explicit-any
+  314:68  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-explicit-any
+  347:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @next/next/no-img-element
+  387:34  error    Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/app/dashboard/page.tsx:387:34
+  385 |               stats?.last_scan_at
+  386 |                 ? (() => {
+> 387 |                     const diff = Date.now() - new Date(stats.last_scan_at).getTime();
+      |                                  ^^^^^^^^^^ Cannot call impure function
+  388 |                     const mins = Math.floor(diff / 60000);
+  389 |                     if (mins < 1) return "Just now";
+  390 |                     if (mins < 60) return `${mins}m ago`;                                                                                                                                                                                                                                                                                           react-hooks/purity
+  424:70  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/no-unescaped-entities
+  424:83  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/no-unescaped-entities
+  466:60  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/no-unescaped-entities
+  466:65  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/no-unescaped-entities
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/app/page.tsx
+  17:3  warning  'ChevronRight' is defined but never used       @typescript-eslint/no-unused-vars
+  21:7  warning  'API_BASE' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/app/scans/[id]/page.tsx
+    8:10  warning  'Badge' is defined but never used                @typescript-eslint/no-unused-vars
+   92:30  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  132:79  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  239:42  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  271:46  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  272:9   warning  'isTerminal' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/components/AddRepoModal.tsx
+  17:3  warning  'GitBranch' is defined but never used  @typescript-eslint/no-unused-vars
+  18:3  warning  'Webhook' is defined but never used    @typescript-eslint/no-unused-vars
+  19:3  warning  'Database' is defined but never used   @typescript-eslint/no-unused-vars
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/components/AgentShowcase.tsx
+   3:20  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+  15:3   warning  'Activity' is defined but never used   @typescript-eslint/no-unused-vars
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/components/CodeDiff.tsx
+  16:3  warning  'EyeOff' is defined but never used             @typescript-eslint/no-unused-vars
+  41:3  warning  'language' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/components/ExploitTerminal.tsx
+  10:3   warning  'Maximize2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  11:3   warning  'Minimize2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  37:10  warning  'currentLine' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  37:23  warning  'setCurrentLine' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  60:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/components/ExploitTerminal.tsx:60:7
+  58 |   useEffect(() => {
+  59 |     if (isStreaming) {
+> 60 |       setDisplayedOutput(output);
+     |       ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  61 |       
+  62 |       // Auto-scroll to bottom
+  63 |       if (terminalRef.current) {  react-hooks/set-state-in-effect
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/components/PipelineTimeline.tsx
+  3:33  warning  'Clock' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/components/SchedulerControl.tsx
+   8:16  warning  'Pause' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+  66:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/jivitrana/Desktop/Aegis/aegis-frontend/components/SchedulerControl.tsx:66:5
+  64 |
+  65 |   useEffect(() => {
+> 66 |     fetchStatus();
+     |     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  67 |     const interval = setInterval(fetchStatus, 30000); // Update every 30 seconds
+  68 |     return () => clearInterval(interval);
+  69 |   }, []);  react-hooks/set-state-in-effect
+
+✖ 40 problems (19 errors, 21 warnings)
+

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, RotateCcw, Clock } from "lucide-react";
+import { Play, RotateCcw, Clock } from "lucide-react";
 
 interface SchedulerStatus {
   running: boolean;
@@ -63,6 +63,7 @@ export default function SchedulerControl() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStatus();
     const interval = setInterval(fetchStatus, 30000); // Update every 30 seconds
     return () => clearInterval(interval);

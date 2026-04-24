@@ -1,0 +1,211 @@
+INFO:     Will watch for changes in these directories: ['/Users/jivitrana/Desktop/Aegis']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [87621] using WatchFiles
+INFO:     Started server process [87623]
+INFO:     Waiting for application startup.
+[21:56:44] [main] Database initialized
+[21:56:44] [scheduler] 🤖 Aegis Scheduler started - scanning every 24 hours
+[21:56:44] [main] 🤖 Autonomous scanning enabled
+[21:56:44] [scheduler] 🔍 Starting autonomous scan of 2 repositories
+INFO:     Application startup complete.
+INFO:     127.0.0.1:53233 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53259 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53260 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53258 - "GET /api/repos?user_id=4 HTTP/1.1" 200 OK
+[21:57:14] [routes.scans] Manual scan triggered for Jivit87/aegis-pr-test @ ad8dd8e4
+[21:57:14] [routes.scans] Starting pipeline thread for Jivit87/aegis-pr-test
+[21:57:14] [orchestrator] === Aegis Pipeline: Jivit87/aegis-pr-test @ ad8dd8e4 ===
+[21:57:14] [routes.scans] Pipeline thread started (thread ID: 6189838336)
+INFO:     127.0.0.1:53266 - "POST /api/scans/trigger?repo_id=2 HTTP/1.1" 200 OK
+[21:57:14] [github_integration.diff_fetcher] Pulling latest changes into /Users/jivitrana/Desktop/Aegis/repos/Jivit87_aegis-pr-test
+[21:57:16] [scanner.semgrep_runner] Running Semgrep locally via /opt/homebrew/bin/semgrep on 1 files...
+[21:57:22] [orchestrator] ⚠️  Semgrep: 9 issue(s) → escalating to Agent 1 (Finder)
+[21:57:23] [orchestrator] 🔍 Agent 1 (Finder): Analyzing code for ALL vulnerabilities...
+[21:57:23] [agents.finder] Agent 1 (Finder) analyzing code with codestral-2508...
+[21:57:26] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[21:57:26] [agents.finder] First JSON parse failed: Expecting ',' delimiter: line 17 column 90 (char 625). Retrying with stricter prompt...
+[21:57:28] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[21:57:28] [agents.finder] Agent 1 (Finder) found 3 vulnerabilities
+[21:57:28] [agents.finder]   1. CRITICAL - SQL Injection in app.py (line 14)
+[21:57:28] [agents.finder]   2. CRITICAL - SQL Injection in app.py (line 34)
+[21:57:28] [agents.finder]   3. HIGH - Information Disclosure in app.py (line 42)
+[21:57:28] [orchestrator] 🔍 Agent 1 (Finder): Found 3 vulnerabilities
+[21:57:28] [orchestrator] 🎯 Agent 2 (Exploiter): Testing vulnerability 1/3: SQL Injection
+[21:57:28] [agents.exploiter] Agent 2 (Exploiter) analyzing SQL Injection with codestral-2508...
+[21:57:31] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[21:57:31] [agents.exploiter] Agent 2 (Exploiter) generated exploit (1527 chars)
+[21:57:31] [agents.exploiter] Tokens used — input: 1075, output: 371
+[21:57:31] [sandbox.docker_runner] Docker daemon not running. Falling back to local subprocess for exploit execution. WARNING: This runs the exploit on the host machine!
+[21:57:31] [orchestrator] ✅ Exploit failed for SQL Injection — likely false positive
+[21:57:31] [orchestrator] 🎯 Agent 2 (Exploiter): Testing vulnerability 2/3: SQL Injection
+[21:57:31] [agents.exploiter] Agent 2 (Exploiter) analyzing SQL Injection with codestral-2508...
+[21:57:35] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[21:57:35] [agents.exploiter] Agent 2 (Exploiter) generated exploit (1380 chars)
+[21:57:35] [agents.exploiter] Tokens used — input: 1080, output: 363
+[21:57:35] [sandbox.docker_runner] Docker daemon not running. Falling back to local subprocess for exploit execution. WARNING: This runs the exploit on the host machine!
+[21:57:35] [orchestrator] ✅ Exploit failed for SQL Injection — likely false positive
+[21:57:35] [orchestrator] 🎯 Agent 2 (Exploiter): Testing vulnerability 3/3: Information Disclosure
+[21:57:35] [agents.exploiter] Agent 2 (Exploiter) analyzing Information Disclosure with codestral-2508...
+[21:57:37] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[21:57:37] [agents.exploiter] Agent 2 (Exploiter) generated exploit (1129 chars)
+[21:57:37] [agents.exploiter] Tokens used — input: 1060, output: 298
+[21:57:37] [sandbox.docker_runner] Docker daemon not running. Falling back to local subprocess for exploit execution. WARNING: This runs the exploit on the host machine!
+[21:57:38] [orchestrator] ✅ Exploit failed for Information Disclosure — likely false positive
+[21:57:38] [orchestrator] ✅ All exploits failed — no real vulnerabilities confirmed.
+[21:57:38] [routes.scans] Pipeline thread completed for Jivit87/aegis-pr-test
+INFO:     127.0.0.1:53376 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53378 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53375 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53378 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53375 - "GET /api/repos?user_id=4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53486 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53487 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53484 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53484 - "GET /api/repos?user_id=4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53484 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53487 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53486 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53484 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53486 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53487 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53508 - "GET /api/scans/live HTTP/1.1" 200 OK
+[21:59:19] [routes.scans] SSE: Emitting scan 11 status=false_positive agent=None
+[21:59:19] [routes.scans] SSE: Emitting scan 10 status=clean agent=None
+[21:59:19] [routes.scans] SSE: Emitting scan 9 status=clean agent=finder
+[21:59:19] [routes.scans] SSE: Emitting scan 8 status=clean agent=finder
+[21:59:19] [routes.scans] SSE: Emitting scan 7 status=clean agent=finder
+[21:59:19] [routes.scans] SSE: Emitting scan 6 status=clean agent=finder
+[21:59:19] [routes.scans] SSE: Emitting scan 5 status=clean agent=finder
+[21:59:19] [routes.scans] SSE: Emitting scan 4 status=clean agent=finder
+[21:59:19] [routes.scans] SSE: Emitting scan 3 status=clean agent=finder
+[21:59:19] [routes.scans] SSE: Emitting scan 2 status=clean agent=finder
+[21:59:19] [routes.scans] SSE: Emitting scan 1 status=clean agent=finder
+INFO:     127.0.0.1:53484 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53484 - "GET /api/scans/11 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53484 - "GET /api/scans/11 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53484 - "GET /api/scans/11 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53548 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53550 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53552 - "GET /api/scans/live HTTP/1.1" 200 OK
+[21:59:43] [routes.scans] SSE: Emitting scan 11 status=false_positive agent=None
+[21:59:43] [routes.scans] SSE: Emitting scan 10 status=clean agent=None
+[21:59:43] [routes.scans] SSE: Emitting scan 9 status=clean agent=finder
+[21:59:43] [routes.scans] SSE: Emitting scan 8 status=clean agent=finder
+[21:59:43] [routes.scans] SSE: Emitting scan 7 status=clean agent=finder
+[21:59:43] [routes.scans] SSE: Emitting scan 6 status=clean agent=finder
+[21:59:43] [routes.scans] SSE: Emitting scan 5 status=clean agent=finder
+[21:59:43] [routes.scans] SSE: Emitting scan 4 status=clean agent=finder
+[21:59:43] [routes.scans] SSE: Emitting scan 3 status=clean agent=finder
+[21:59:43] [routes.scans] SSE: Emitting scan 2 status=clean agent=finder
+[21:59:43] [routes.scans] SSE: Emitting scan 1 status=clean agent=finder
+INFO:     127.0.0.1:53546 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+[21:59:46] [routes.scans] Manual scan triggered for Jivit87/aegis-pr-test @ ad8dd8e4
+[21:59:46] [routes.scans] Starting pipeline thread for Jivit87/aegis-pr-test
+[21:59:47] [orchestrator] === Aegis Pipeline: Jivit87/aegis-pr-test @ ad8dd8e4 ===
+[21:59:46] [routes.scans] Pipeline thread started (thread ID: 6241005568)
+INFO:     127.0.0.1:53546 - "POST /api/scans/trigger?repo_id=2 HTTP/1.1" 200 OK
+[21:59:47] [github_integration.diff_fetcher] Pulling latest changes into /Users/jivitrana/Desktop/Aegis/repos/Jivit87_aegis-pr-test
+[21:59:48] [routes.scans] SSE: Emitting scan 12 status=scanning agent=finder
+INFO:     127.0.0.1:53565 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53567 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53546 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+[21:59:49] [scanner.semgrep_runner] Running Semgrep locally via /opt/homebrew/bin/semgrep on 1 files...
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+[21:59:57] [orchestrator] ⚠️  Semgrep: 9 issue(s) → escalating to Agent 1 (Finder)
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+[21:59:57] [orchestrator] 🔍 Agent 1 (Finder): Analyzing code for ALL vulnerabilities...
+[21:59:57] [agents.finder] Agent 1 (Finder) analyzing code with codestral-2508...
+[21:59:59] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[21:59:59] [agents.finder] Agent 1 (Finder) found 3 vulnerabilities
+[21:59:59] [agents.finder]   1. CRITICAL - SQL Injection in app.py (line 14)
+[21:59:59] [agents.finder]   2. CRITICAL - SQL Injection in app.py (line 34)
+[21:59:59] [agents.finder]   3. HIGH - Information Disclosure in app.py (line 42)
+[21:59:59] [orchestrator] 🔍 Agent 1 (Finder): Found 3 vulnerabilities
+[21:59:59] [orchestrator] 🎯 Agent 2 (Exploiter): Testing vulnerability 1/3: SQL Injection
+[21:59:59] [agents.exploiter] Agent 2 (Exploiter) analyzing SQL Injection with codestral-2508...
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+[22:00:01] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[22:00:02] [agents.exploiter] Agent 2 (Exploiter) generated exploit (1304 chars)
+[22:00:02] [agents.exploiter] Tokens used — input: 1077, output: 342
+[22:00:02] [sandbox.docker_runner] Docker daemon not running. Falling back to local subprocess for exploit execution. WARNING: This runs the exploit on the host machine!
+[22:00:02] [orchestrator] ✅ Exploit failed for SQL Injection — likely false positive
+[22:00:02] [orchestrator] 🎯 Agent 2 (Exploiter): Testing vulnerability 2/3: SQL Injection
+[22:00:02] [agents.exploiter] Agent 2 (Exploiter) analyzing SQL Injection with codestral-2508...
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+[22:00:03] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[22:00:03] [agents.exploiter] Agent 2 (Exploiter) generated exploit (1139 chars)
+[22:00:03] [agents.exploiter] Tokens used — input: 1079, output: 296
+[22:00:03] [sandbox.docker_runner] Docker daemon not running. Falling back to local subprocess for exploit execution. WARNING: This runs the exploit on the host machine!
+[22:00:03] [orchestrator] ✅ Exploit failed for SQL Injection — likely false positive
+[22:00:03] [orchestrator] 🎯 Agent 2 (Exploiter): Testing vulnerability 3/3: Information Disclosure
+[22:00:03] [agents.exploiter] Agent 2 (Exploiter) analyzing Information Disclosure with codestral-2508...
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+[22:00:08] [httpx] HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+[22:00:08] [agents.exploiter] Agent 2 (Exploiter) generated exploit (866 chars)
+[22:00:08] [agents.exploiter] Tokens used — input: 1063, output: 215
+[22:00:08] [sandbox.docker_runner] Docker daemon not running. Falling back to local subprocess for exploit execution. WARNING: This runs the exploit on the host machine!
+[22:00:09] [orchestrator] ✅ Exploit failed for Information Disclosure — likely false positive
+[22:00:09] [orchestrator] ✅ All exploits failed — no real vulnerabilities confirmed.
+[22:00:09] [routes.scans] Pipeline thread completed for Jivit87/aegis-pr-test
+INFO:     127.0.0.1:53546 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53626 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53546 - "GET /api/repos?user_id=4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53659 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53662 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53663 - "GET /api/scans/live HTTP/1.1" 200 OK
+[22:00:27] [routes.scans] SSE: Emitting scan 12 status=false_positive agent=None
+[22:00:27] [routes.scans] SSE: Emitting scan 11 status=false_positive agent=None
+[22:00:27] [routes.scans] SSE: Emitting scan 10 status=clean agent=None
+[22:00:27] [routes.scans] SSE: Emitting scan 9 status=clean agent=finder
+[22:00:27] [routes.scans] SSE: Emitting scan 8 status=clean agent=finder
+[22:00:27] [routes.scans] SSE: Emitting scan 7 status=clean agent=finder
+[22:00:27] [routes.scans] SSE: Emitting scan 6 status=clean agent=finder
+[22:00:27] [routes.scans] SSE: Emitting scan 5 status=clean agent=finder
+[22:00:27] [routes.scans] SSE: Emitting scan 4 status=clean agent=finder
+[22:00:27] [routes.scans] SSE: Emitting scan 3 status=clean agent=finder
+[22:00:27] [routes.scans] SSE: Emitting scan 2 status=clean agent=finder
+[22:00:27] [routes.scans] SSE: Emitting scan 1 status=clean agent=finder
+INFO:     127.0.0.1:53657 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53680 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53682 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53679 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53700 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53702 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53698 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53726 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53727 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53725 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53746 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53748 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53744 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53744 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53744 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53748 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53744 - "GET /api/repos?user_id=4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53744 - "GET /api/scans/12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53809 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53811 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53812 - "GET /api/scans/live HTTP/1.1" 200 OK
+[22:01:46] [routes.scans] SSE: Emitting scan 12 status=false_positive agent=None
+[22:01:46] [routes.scans] SSE: Emitting scan 11 status=false_positive agent=None
+[22:01:46] [routes.scans] SSE: Emitting scan 10 status=clean agent=None
+[22:01:46] [routes.scans] SSE: Emitting scan 9 status=clean agent=finder
+[22:01:46] [routes.scans] SSE: Emitting scan 8 status=clean agent=finder
+[22:01:46] [routes.scans] SSE: Emitting scan 7 status=clean agent=finder
+[22:01:46] [routes.scans] SSE: Emitting scan 6 status=clean agent=finder
+[22:01:46] [routes.scans] SSE: Emitting scan 5 status=clean agent=finder
+[22:01:46] [routes.scans] SSE: Emitting scan 4 status=clean agent=finder
+[22:01:46] [routes.scans] SSE: Emitting scan 3 status=clean agent=finder
+[22:01:46] [routes.scans] SSE: Emitting scan 2 status=clean agent=finder
+[22:01:46] [routes.scans] SSE: Emitting scan 1 status=clean agent=finder
+INFO:     127.0.0.1:53806 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53829 - "GET /api/scans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53830 - "GET /api/stats?user_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53827 - "GET /api/repos?user_id=1 HTTP/1.1" 200 OK

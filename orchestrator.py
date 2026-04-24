@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 import asyncio
 from datetime import datetime, timezone
@@ -47,6 +48,21 @@ def update_scan_status(scan_id: int, status: str, extra: dict = None):
                     scan.patch_diff = extra["patch_diff"]
                 if "pr_url" in extra:
                     scan.pr_url = extra["pr_url"]
+                # New agent-identity fields
+                if "current_agent" in extra:
+                    scan.current_agent = extra["current_agent"]
+                if "agent_message" in extra:
+                    scan.agent_message = extra["agent_message"]
+                if "original_code" in extra:
+                    scan.original_code = extra["original_code"]
+                if "exploit_script" in extra:
+                    scan.exploit_script = extra["exploit_script"]
+                if "findings_json" in extra:
+                    scan.findings_json = extra["findings_json"]
+                if "patch_attempts" in extra:
+                    scan.patch_attempts = extra["patch_attempts"]
+                if "error_message" in extra:
+                    scan.error_message = extra["error_message"]
             db.commit()
             db.refresh(scan)
             _broadcast(scan)
@@ -106,6 +122,9 @@ def _broadcast(scan: Scan):
             "status": scan.status,
             "vulnerability_type": scan.vulnerability_type,
             "severity": scan.severity,
+            "vulnerable_file": scan.vulnerable_file,
+            "current_agent": scan.current_agent,
+            "agent_message": scan.agent_message,
             "pr_url": scan.pr_url,
             "created_at": str(scan.created_at),
         })
@@ -137,21 +156,26 @@ def run_aegis_pipeline(push_info: dict):
 
         # ── Phase 2: Clone + Diff + Semgrep ──────────────
         if scan:
-            update_scan_status(scan.id, ScanStatus.SCANNING.value)
+            update_scan_status(scan.id, ScanStatus.SCANNING.value, {
+                "current_agent": "finder",
+                "agent_message": "Cloning repository and running Semgrep static analysis..."
+            })
 
         local_repo_path = os.path.join(
             config.REPOS_DIR, repo_full_name.replace("/", "_")
         )
 
         # Use user token if available
+        user_token = None
         repo_obj = db.query(Repo).filter(Repo.full_name == repo_full_name).first()
         if repo_obj and repo_obj.user:
-            clone_url = f"https://x-access-token:{repo_obj.user.github_token}@github.com/{repo_full_name}.git"
+            user_token = repo_obj.user.github_token
+            clone_url = f"https://x-access-token:{user_token}@github.com/{repo_full_name}.git"
         else:
             clone_url = push_info.get("repo_url", f"https://github.com/{repo_full_name}.git")
 
         clone_or_pull_repo(clone_url, local_repo_path)
-        diff = get_diff(repo_full_name, commit_sha)
+        diff = get_diff(repo_full_name, commit_sha, github_token=user_token)
 
         if not diff["changed_files"]:
             logger.info("No supported code files changed. Pipeline done.")
@@ -175,12 +199,20 @@ def run_aegis_pipeline(push_info: dict):
 
         # ── Phase 4: Agent 1 (Finder) — Identify ALL vulnerabilities ─────────────────────
         logger.info("🔍 Agent 1 (Finder): Analyzing code for ALL vulnerabilities...")
+        if scan:
+            update_scan_status(scan.id, ScanStatus.SCANNING.value, {
+                "current_agent": "finder",
+                "agent_message": f"Analyzing {len(semgrep_findings)} Semgrep finding(s) + RAG context..."
+            })
         findings = run_finder_agent(diff, semgrep_findings, rag_context)
         
         if not findings:
             logger.info("✅ Finder found no vulnerabilities — clean.")
             if scan:
-                update_scan_status(scan.id, ScanStatus.CLEAN.value)
+                update_scan_status(scan.id, ScanStatus.CLEAN.value, {
+                    "current_agent": None,
+                    "agent_message": "No vulnerabilities found — code is clean!"
+                })
             return
         
         logger.info(f"🔍 Agent 1 (Finder): Found {len(findings)} vulnerabilities")
@@ -192,9 +224,12 @@ def run_aegis_pipeline(push_info: dict):
                 scan.id,
                 ScanStatus.SCANNING.value,
                 {
+                    "current_agent": "finder",
+                    "agent_message": f"Found {len(findings)} vulnerabilit{'y' if len(findings)==1 else 'ies'} — most critical: {critical_finding.vuln_type}",
                     "vulnerability_type": critical_finding.vuln_type,
                     "severity": critical_finding.severity,
                     "vulnerable_file": critical_finding.file,
+                    "findings_json": json.dumps([f.dict() for f in findings]),
                 }
             )
 
@@ -205,7 +240,10 @@ def run_aegis_pipeline(push_info: dict):
             logger.info(f"🎯 Agent 2 (Exploiter): Testing vulnerability {i}/{len(findings)}: {finding.vuln_type}")
             
             if scan:
-                update_scan_status(scan.id, ScanStatus.EXPLOITING.value)
+                update_scan_status(scan.id, ScanStatus.EXPLOITING.value, {
+                    "current_agent": "exploiter",
+                    "agent_message": f"Writing exploit for {finding.vuln_type} in {finding.file}:{finding.line_start}..."
+                })
             
             # Convert Pydantic model to dict for exploiter
             finding_dict = {
@@ -221,6 +259,13 @@ def run_aegis_pipeline(push_info: dict):
             exploiter_result = run_exploiter_agent(finding_dict, diff, rag_context)
             exploit_script = exploiter_result["exploit_script"]
             vulnerability_type = exploiter_result["vulnerability_type"]
+            
+            if scan:
+                update_scan_status(scan.id, ScanStatus.EXPLOITING.value, {
+                    "current_agent": "exploiter",
+                    "agent_message": f"Running exploit in isolated Docker sandbox...",
+                    "exploit_script": exploit_script
+                })
             
             # Test exploit in Docker sandbox
             exploit_test = run_exploit_in_sandbox(exploit_script, local_repo_path)
@@ -238,7 +283,11 @@ def run_aegis_pipeline(push_info: dict):
                     update_scan_status(
                         scan.id,
                         ScanStatus.EXPLOIT_CONFIRMED.value,
-                        {"exploit_output": exploit_test["stdout"]}
+                        {
+                            "current_agent": "exploiter",
+                            "agent_message": f"CONFIRMED: {vulnerability_type} is exploitable in Docker sandbox",
+                            "exploit_output": exploit_test["stdout"],
+                        }
                     )
                 
                 # For now, fix the first confirmed vulnerability
@@ -253,7 +302,11 @@ def run_aegis_pipeline(push_info: dict):
                 update_scan_status(
                     scan.id,
                     ScanStatus.FALSE_POSITIVE.value,
-                    {"exploit_output": "All exploits failed to confirm vulnerabilities"}
+                    {
+                        "current_agent": None,
+                        "agent_message": "All exploits failed to confirm vulnerabilities — marked as false positive",
+                        "exploit_output": "All exploits failed to confirm vulnerabilities"
+                    }
                 )
             return
         
@@ -264,14 +317,18 @@ def run_aegis_pipeline(push_info: dict):
         vulnerability_type = confirmed["vulnerability_type"]
         vulnerable_file = confirmed["finding"]["file"]
 
-        # ── Phase 6+7: Agent 3 (Engineer) + Agent 4 (Verifier) Loop ──────────
-        if scan:
-            update_scan_status(scan.id, ScanStatus.PATCHING.value)
-
         full_vulnerable_path = os.path.join(local_repo_path, vulnerable_file)
 
         with open(full_vulnerable_path, "r") as f:
             original_code = f.read()
+
+        # ── Phase 6+7: Agent 3 (Engineer) + Agent 4 (Verifier) Loop ──────────
+        if scan:
+            update_scan_status(scan.id, ScanStatus.PATCHING.value, {
+                "current_agent": "engineer",
+                "agent_message": f"Writing security patch for {vulnerable_file}...",
+                "original_code": original_code
+            })
 
         remediation = run_remediation_loop(
             vulnerable_code=original_code,
@@ -289,13 +346,22 @@ def run_aegis_pipeline(push_info: dict):
                 update_scan_status(
                     scan.id,
                     ScanStatus.FAILED.value,
-                    {"error_message": "Agents could not generate a working patch after max retries."}
+                    {
+                        "current_agent": None,
+                        "agent_message": f"Failed after {remediation.get('attempts', 3)} attempt(s) — human review required",
+                        "error_message": "Agents could not generate a working patch after max retries.",
+                        "patch_attempts": remediation.get('attempts', 3)
+                    }
                 )
             return
 
         # ── Phase 8: Open PR ──────────────────────────────
         if scan:
-            update_scan_status(scan.id, ScanStatus.VERIFYING.value)
+            update_scan_status(scan.id, ScanStatus.VERIFYING.value, {
+                "current_agent": "verifier",
+                "agent_message": "Running exploit + unit tests against patched code...",
+                "patch_attempts": remediation.get('attempts', 1)
+            })
 
         logger.info("🚀 Opening PR with fix and exploit proof...")
         pr_url = create_pull_request(
@@ -312,8 +378,11 @@ def run_aegis_pipeline(push_info: dict):
                 scan.id,
                 ScanStatus.FIXED.value,
                 {
+                    "current_agent": None,
+                    "agent_message": f"Vulnerability fixed! Exploit blocked, tests passing. PR opened.",
                     "patch_diff": remediation["patched_code"],
-                    "pr_url": pr_url
+                    "pr_url": pr_url,
+                    "patch_attempts": remediation.get('attempts', 1)
                 }
             )
 

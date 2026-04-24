@@ -3,21 +3,21 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, type RepoInfo, type ScanInfo } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  api,
+  type RepoInfo,
+  type ScanInfo,
+  type ScanStatus,
+  type StatsInfo,
+  isActiveScan,
+} from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/StatCard";
+import { AgentAvatar } from "@/components/AgentAvatar";
+import { LiveTimer } from "@/components/LiveTimer";
+import { AddRepoModal } from "@/components/AddRepoModal";
 import {
   Shield,
-  Plus,
   GitBranch,
   Loader2,
   CheckCircle2,
@@ -27,44 +27,38 @@ import {
   Trash2,
   Activity,
   FolderGit2,
-  Search,
+  Zap,
+  Clock,
   LogOut,
+  Plus,
 } from "lucide-react";
 
-import { VulnCard } from "@/components/VulnCard";
-import { AddRepoModal } from "@/components/AddRepoModal";
-import { SchedulerControl } from "@/components/SchedulerControl";
-
-// ── Status Badge Component ───────────────────────────────
+// ── Status Badge ─────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ElementType }> = {
-    queued: { label: "Queued", variant: "secondary", icon: Loader2 },
-    scanning: { label: "Scanning", variant: "outline", icon: Search },
-    exploiting: { label: "Exploiting", variant: "outline", icon: AlertTriangle },
-    exploit_confirmed: { label: "Exploit Found", variant: "destructive", icon: AlertTriangle },
-    patching: { label: "Patching", variant: "outline", icon: Activity },
-    verifying: { label: "Verifying", variant: "outline", icon: CheckCircle2 },
-    fixed: { label: "Fixed", variant: "default", icon: CheckCircle2 },
-    false_positive: { label: "False Positive", variant: "secondary", icon: XCircle },
-    clean: { label: "Clean", variant: "default", icon: CheckCircle2 },
-    failed: { label: "Failed", variant: "destructive", icon: XCircle },
-    setting_up: { label: "Setting up", variant: "outline", icon: Loader2 },
-    monitoring: { label: "Monitoring", variant: "default", icon: Shield },
-    error: { label: "Error", variant: "destructive", icon: XCircle },
+  const map: Record<string, { label: string; cls: string }> = {
+    queued:            { label: "Queued",         cls: "bg-white/5 text-muted-foreground border-white/10" },
+    scanning:          { label: "Scanning",        cls: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+    exploiting:        { label: "Exploiting",      cls: "bg-red-500/15 text-red-400 border-red-500/30" },
+    exploit_confirmed: { label: "Exploit Found",   cls: "bg-red-500/20 text-red-300 border-red-500/40 font-bold" },
+    patching:          { label: "Patching",        cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+    verifying:         { label: "Verifying",       cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+    fixed:             { label: "Fixed ✓",        cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+    false_positive:    { label: "False Positive",  cls: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
+    clean:             { label: "Clean ✓",        cls: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
+    failed:            { label: "Failed",          cls: "bg-red-500/10 text-red-400 border-red-500/20" },
+    setting_up:        { label: "Setting Up",      cls: "bg-white/5 text-muted-foreground border-white/10" },
+    monitoring:        { label: "Monitoring",      cls: "bg-primary/10 text-primary border-primary/20" },
+    error:             { label: "Error",           cls: "bg-red-500/10 text-red-400 border-red-500/20" },
   };
-
-  const c = config[status] || { label: status, variant: "secondary" as const, icon: Activity };
-  const Icon = c.icon;
-
+  const c = map[status] ?? { label: status, cls: "bg-white/5 text-muted-foreground border-white/10" };
   return (
-    <Badge variant={c.variant} className="gap-1.5">
-      <Icon className={`h-3 w-3 ${status === "scanning" || status === "queued" || status === "setting_up" ? "animate-spin" : ""}`} />
+    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${c.cls}`}>
       {c.label}
-    </Badge>
+    </span>
   );
 }
 
-// ── Repo Card Component ──────────────────────────────────
+// ── Repo Card ─────────────────────────────────────────────
 function RepoCard({
   repo,
   onDelete,
@@ -76,36 +70,41 @@ function RepoCard({
 }) {
   const [triggering, setTriggering] = useState(false);
 
-  async function handleTriggerScan() {
+  const borderColor =
+    repo.status === "monitoring" ? "border-l-emerald-500/60"
+    : repo.status === "setting_up" ? "border-l-amber-500/60"
+    : repo.status === "error" ? "border-l-red-500/60"
+    : "border-l-white/10";
+
+  async function handleTrigger() {
     setTriggering(true);
-    try {
-      await onTriggerScan(repo.id);
-    } finally {
-      setTriggering(false);
-    }
+    try { await onTriggerScan(repo.id); }
+    finally { setTimeout(() => setTriggering(false), 2000); }
   }
 
   return (
-    <Card className="aegis-card-hover border-border/50">
-      <CardContent className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3">
-          <FolderGit2 className="h-5 w-5 text-muted-foreground" />
-          <div>
-              <Link href={`/repos/${repo.id}`}>
-                <p className="font-semibold text-sm underline text-primary">{repo.full_name}</p>
-              </Link>
+    <div className={`aegis-glass aegis-card-hover rounded-xl border-l-4 ${borderColor} p-4`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <FolderGit2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <Link href={`/repos/${repo.id}`}>
+              <p className="font-semibold text-sm text-foreground truncate hover:text-primary transition-colors">
+                {repo.full_name}
+              </p>
+            </Link>
             <p className="text-xs text-muted-foreground">
               Added {new Date(repo.created_at).toLocaleDateString()}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <StatusBadge status={repo.status} />
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5"
-            onClick={handleTriggerScan}
+            className="h-7 gap-1.5 text-xs border-white/10 hover:border-primary/50 hover:text-primary"
+            onClick={handleTrigger}
             disabled={triggering}
           >
             {triggering ? (
@@ -113,114 +112,150 @@ function RepoCard({
             ) : (
               <Activity className="h-3 w-3" />
             )}
-            Scan
+            {triggering ? "Starting..." : "Scan"}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            className="h-7 w-7 text-muted-foreground hover:text-red-400"
             onClick={() => onDelete(repo.id)}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
-// ── Scan Card Component ──────────────────────────────────
-function ScanCard({ scan }: { scan: ScanInfo }) {
+// ── Scan Feed Card ────────────────────────────────────────
+function ScanFeedCard({ scan }: { scan: ScanInfo }) {
   const router = useRouter();
+  const active = isActiveScan(scan.status as ScanStatus);
+  const agent = scan.current_agent as "finder" | "exploiter" | "engineer" | "verifier" | null;
 
   return (
-    <Card
-      className="aegis-card-hover border-border/50 cursor-pointer"
-      role="link"
+    <div
+      role="button"
       tabIndex={0}
       onClick={() => router.push(`/scans/${scan.id}`)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          router.push(`/scans/${scan.id}`);
-        }
-      }}
+      onKeyDown={(e) => { if (e.key === "Enter") router.push(`/scans/${scan.id}`); }}
+      className={`group relative rounded-xl border p-4 cursor-pointer transition-all duration-300 ${
+        active
+          ? "aegis-active-scan bg-card/80"
+          : "border-border/40 bg-card/40 hover:border-border/70 hover:bg-card/60"
+      }`}
     >
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <GitBranch className="h-4 w-4 text-muted-foreground" />
-                <code className="text-xs text-muted-foreground">
-                  {scan.commit_sha.slice(0, 8)}
-                </code>
-                <span className="text-xs text-muted-foreground">on</span>
-                <code className="text-xs text-primary">{scan.branch}</code>
-              </div>
-              {scan.vulnerability_type && (
-                <p className="text-sm font-medium">
-                  {scan.vulnerability_type}
-                  {scan.vulnerable_file && (
-                    <span className="ml-2 text-muted-foreground font-normal">
-                      in {scan.vulnerable_file}
-                    </span>
-                  )}
-                </p>
-              )}
-              {scan.exploit_output && (
-                <pre className="mt-2 max-h-24 overflow-auto rounded bg-secondary/50 p-2 text-xs text-muted-foreground">
-                  {scan.exploit_output.slice(0, 300)}
-                </pre>
-              )}
+      <div className="flex items-start gap-3">
+        {/* Agent avatar or status icon */}
+        <div className="shrink-0 mt-0.5">
+          {active && agent ? (
+            <AgentAvatar agent={agent} size="sm" showRing={true} />
+          ) : scan.status === "fixed" || scan.status === "clean" ? (
+            <div className="h-7 w-7 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <StatusBadge status={scan.status} />
-              {scan.pr_url && (
-                <a
-                  href={scan.pr_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  View PR <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-              <span className="text-xs text-muted-foreground">
-                {new Date(scan.created_at).toLocaleTimeString()}
-              </span>
+          ) : scan.status === "failed" ? (
+            <div className="h-7 w-7 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+              <XCircle className="h-3.5 w-3.5 text-red-400" />
             </div>
+          ) : scan.status === "false_positive" ? (
+            <div className="h-7 w-7 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+            </div>
+          ) : (
+            <div className="h-7 w-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+              <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 space-y-1">
+          {/* Commit + branch */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <code className="text-xs text-muted-foreground font-mono">{scan.commit_sha.slice(0, 8)}</code>
+            <span className="text-xs text-muted-foreground">on</span>
+            <code className="text-xs text-primary font-mono">{scan.branch}</code>
           </div>
-        </CardContent>
-    </Card>
+
+          {/* Agent message or vulnerability */}
+          {active && scan.agent_message ? (
+            <p className="text-xs text-foreground/80 leading-relaxed">{scan.agent_message}</p>
+          ) : scan.vulnerability_type ? (
+            <p className="text-xs font-medium text-foreground">
+              {scan.vulnerability_type}
+              {scan.vulnerable_file && (
+                <span className="ml-1.5 text-muted-foreground font-normal">
+                  in <code className="text-primary">{scan.vulnerable_file}</code>
+                </span>
+              )}
+            </p>
+          ) : null}
+        </div>
+
+        {/* Right side */}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <StatusBadge status={scan.status} />
+          {active ? (
+            <LiveTimer startTime={scan.created_at} isActive={true} />
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {new Date(scan.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          {scan.pr_url && (
+            <a
+              href={scan.pr_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 text-xs text-emerald-400 hover:underline"
+            >
+              View PR <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
-// ── Main Dashboard ───────────────────────────────────────
+// ── Main Dashboard ────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
   const [repos, setRepos] = useState<RepoInfo[]>([]);
   const [scans, setScans] = useState<ScanInfo[]>([]);
-  const [username, setUsername] = useState("");
+  const [stats, setStats] = useState<StatsInfo | null>(null);
   const [userId, setUserId] = useState(0);
+  const [username, setUsername] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [openAddRepo, setOpenAddRepo] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUserId(Number(localStorage.getItem("aegis_user_id")));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUsername(localStorage.getItem("aegis_username") || "");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAvatarUrl(localStorage.getItem("aegis_avatar") || "");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSessionReady(true);
   }, []);
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
     try {
-      const [repoData, scanData] = await Promise.all([
+      const [repoData, scanData, statsData] = await Promise.all([
         api.listRepos(userId),
         api.listScans(),
+        api.getStats(userId).catch(() => null),
       ]);
       setRepos(repoData);
       setScans(scanData);
+      if (statsData) setStats(statsData);
     } catch (err) {
       console.error("Failed to fetch data:", err);
     }
@@ -228,45 +263,29 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!sessionReady) return;
-    if (!userId) {
-      router.push("/");
-      return;
-    }
+    if (!userId) { router.push("/"); return; }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData().finally(() => setLoading(false));
 
-    // Connect to live feed with real-time scan updates
+    // SSE live feed
     const es = api.connectLiveFeed((scanData) => {
-      console.log("SSE received scan update:", scanData.id, scanData.status);
-      // Update scans in real-time without full re-fetch
-      setScans((prevScans) => {
-        const existingIndex = prevScans.findIndex((s) => s.id === scanData.id);
-        if (existingIndex >= 0) {
-          // Update existing scan
-          const updated = [...prevScans];
-          updated[existingIndex] = scanData;
-          console.log("Updated existing scan", scanData.id);
+      setScans((prev) => {
+        const idx = prev.findIndex((s) => s.id === scanData.id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = scanData;
           return updated;
-        } else {
-          // Add new scan at the beginning
-          console.log("Added new scan", scanData.id);
-          return [scanData, ...prevScans];
         }
+        return [scanData, ...prev];
       });
     });
 
-    // Poll every 5s as fallback (more frequent for better UX)
-    const interval = setInterval(fetchData, 5000);
+    // Refresh stats every 10s
+    const interval = setInterval(fetchData, 10000);
 
-    return () => {
-      es.close();
-      clearInterval(interval);
-    };
+    return () => { es.close(); clearInterval(interval); };
   }, [sessionReady, userId, router, fetchData]);
-
-  async function handleAddRepo(url: string) {
-    await api.addRepo(userId, url);
-    await fetchData();
-  }
 
   async function handleDeleteRepo(repoId: number) {
     await api.deleteRepo(repoId);
@@ -275,18 +294,10 @@ export default function DashboardPage() {
 
   async function handleTriggerScan(repoId: number) {
     try {
-      const response = await fetch(`http://localhost:8000/api/scans/trigger?repo_id=${repoId}`, {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to trigger scan");
-      }
-      const data = await response.json();
-      console.log("Scan triggered:", data);
-      // Refresh data to show new scan
+      await api.triggerScan(repoId);
       setTimeout(() => fetchData(), 2000);
-    } catch (error) {
-      console.error("Error triggering scan:", error);
+    } catch (err) {
+      console.error("Error triggering scan:", err);
     }
   }
 
@@ -297,97 +308,179 @@ export default function DashboardPage() {
     router.push("/");
   }
 
+  // Sort: active scans first
+  const sortedScans = [...scans].sort((a, b) => {
+    const aActive = isActiveScan(a.status as ScanStatus) ? 1 : 0;
+    const bActive = isActiveScan(b.status as ScanStatus) ? 1 : 0;
+    return bActive - aActive;
+  });
+
+  const activeCount = scans.filter((s) => isActiveScan(s.status as ScanStatus)).length;
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Shield className="h-12 w-12 text-primary status-pulse" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
+      {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold">Aegis</span>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-2.5">
+            <Shield className="h-6 w-6 text-primary" strokeWidth={1.8} />
+            <span className="text-lg font-bold tracking-tight">Aegis</span>
+            {activeCount > 0 && (
+              <span className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+                </span>
+                {activeCount} active
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {avatarUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt={username} className="h-7 w-7 rounded-full border border-border/50" />
+            )}
             <span className="text-sm text-muted-foreground">{username}</span>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1.5">
-              <LogOut className="h-4 w-4" />
-              Sign out
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1.5 text-muted-foreground">
+              <LogOut className="h-4 w-4" /> Sign out
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        {/* Repos section */}
-        <div className="mb-10">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold">Monitored Repositories</h2>
-              <p className="text-sm text-muted-foreground">
-                {repos.length} {repos.length === 1 ? "repo" : "repos"} connected
-              </p>
-            </div>
-            <AddRepoModal userId={userId} onSuccess={fetchData} />
-          </div>
+      <main className="mx-auto max-w-7xl px-6 py-8 space-y-8">
 
-          {repos.length === 0 ? (
-            <Card className="border-dashed border-border/50">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <FolderGit2 className="mb-3 h-10 w-10 text-muted-foreground/50" />
-                <p className="text-muted-foreground">No repos monitored yet</p>
-                <p className="text-sm text-muted-foreground/70">
-                  Click &quot;Monitor Repo&quot; to get started
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {repos.map((repo) => (
-                <RepoCard key={repo.id} repo={repo} onDelete={handleDeleteRepo} onTriggerScan={handleTriggerScan} />
-              ))}
-            </div>
-          )}
+        {/* ── Stats Row ── */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard
+            icon={GitBranch}
+            label="Repos Monitored"
+            value={stats?.total_repos ?? repos.length}
+            accentClass="text-primary"
+          />
+          <StatCard
+            icon={Zap}
+            label="Active Scans"
+            value={stats?.active_scans ?? activeCount}
+            subLabel={stats?.active_scans ? "in progress" : "all idle"}
+            accentClass="text-amber-400"
+            isActive={(stats?.active_scans ?? activeCount) > 0}
+          />
+          <StatCard
+            icon={Shield}
+            label="Vulnerabilities Fixed"
+            value={stats?.vulns_fixed ?? 0}
+            accentClass="text-emerald-400"
+          />
+          <StatCard
+            icon={Clock}
+            label="Last Scan"
+            value={
+              stats?.last_scan_at
+                ? (() => {
+                    // eslint-disable-next-line react-hooks/purity
+                    const diff = Date.now() - new Date(stats.last_scan_at).getTime();
+                    const mins = Math.floor(diff / 60000);
+                    if (mins < 1) return "Just now";
+                    if (mins < 60) return `${mins}m ago`;
+                    return `${Math.floor(mins / 60)}h ago`;
+                  })()
+                : "Never"
+            }
+            accentClass="text-muted-foreground"
+          />
         </div>
 
-        {/* Scheduler Control */}
-        <div className="mb-6">
-          <SchedulerControl />
-        </div>
+        {/* ── Two-column grid ── */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[380px_1fr]">
 
-        {/* Scans feed */}
-        <div>
-          <div className="mb-4">
-            <h2 className="text-xl font-bold">Scan Feed</h2>
-            <p className="text-sm text-muted-foreground">
-              Live vulnerability scan results
-            </p>
+          {/* ── Left: Repos ── */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-bold">Monitored Repos</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {repos.length} {repos.length === 1 ? "repository" : "repositories"} connected
+                </p>
+              </div>
+              <AddRepoModal userId={userId} onSuccess={fetchData} forceOpen={openAddRepo} onForceOpenHandled={() => setOpenAddRepo(false)} />
+            </div>
+
+            {repos.length === 0 ? (
+              <div
+                className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/50 py-12 cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                onClick={() => setOpenAddRepo(true)}
+              >
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Plus className="h-5 w-5 text-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium">No repos yet</p>
+                  <p className="text-xs text-muted-foreground">Click &quot;Monitor Repo&quot; to get started</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {repos.map((repo) => (
+                  <RepoCard
+                    key={repo.id}
+                    repo={repo}
+                    onDelete={handleDeleteRepo}
+                    onTriggerScan={handleTriggerScan}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          {scans.length === 0 ? (
-            <Card className="border-dashed border-border/50">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Activity className="mb-3 h-10 w-10 text-muted-foreground/50" />
-                <p className="text-muted-foreground">No scans yet</p>
-                <p className="text-sm text-muted-foreground/70">
-                  Scans appear here when you push code to a monitored repo
+          {/* ── Right: Live Scan Feed ── */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-bold">Live Activity</h2>
+                  {activeCount > 0 && (
+                    <span className="flex h-2 w-2">
+                      <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-primary opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Real-time vulnerability scan results
                 </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {scans.map((scan) => (
-                <VulnCard key={scan.id} scan={scan} />
-              ))}
+              </div>
             </div>
-          )}
+
+            {sortedScans.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/50 py-16">
+                <Activity className="h-8 w-8 text-muted-foreground/30" />
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">No scans yet</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    Push code to a monitored repo or click &quot;Scan&quot; to trigger one
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {sortedScans.map((scan) => (
+                  <ScanFeedCard key={scan.id} scan={scan} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>

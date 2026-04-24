@@ -1,10 +1,8 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
+@layer base {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -48,6 +46,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Light Mode (mostly unused — Aegis is dark-only) ─── */
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -83,43 +82,78 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* ── Dark Mode — Aegis Design System ────────────────── */
 .dark {
-  --background: oklch(0.13 0.005 260);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.17 0.005 260);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.17 0.005 260);
-  --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.75 0.18 160);
-  --primary-foreground: oklch(0.13 0 0);
-  --secondary: oklch(0.22 0.005 260);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.22 0.005 260);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.22 0.01 260);
-  --accent-foreground: oklch(0.95 0 0);
-  --destructive: oklch(0.65 0.2 25);
+  /* ── Base Layers ── */
+  --background: oklch(0.10 0.015 255);        /* Deep void navy */
+  --foreground: oklch(0.95 0.005 260);        /* Off-white */
+  --card: oklch(0.14 0.012 258);              /* Card surface */
+  --card-foreground: oklch(0.95 0.005 260);
+  --popover: oklch(0.17 0.010 260);           /* Modal/dropdown */
+  --popover-foreground: oklch(0.95 0.005 260);
+
+  /* ── Primary: Cyan-Teal (actions, active, links) ── */
+  --primary: oklch(0.78 0.14 195);
+  --primary-foreground: oklch(0.10 0.015 255);
+
+  /* ── Secondary: Subtle surface ── */
+  --secondary: oklch(0.18 0.010 260);
+  --secondary-foreground: oklch(0.95 0.005 260);
+
+  /* ── Muted ── */
+  --muted: oklch(0.20 0.008 260);
+  --muted-foreground: oklch(0.55 0.008 260);
+
+  /* ── Accent ── */
+  --accent: oklch(0.20 0.010 260);
+  --accent-foreground: oklch(0.95 0.005 260);
+
+  /* ── Destructive: Crimson (threats, exploiter) ── */
+  --destructive: oklch(0.65 0.22 25);
+
+  /* ── Borders & Inputs ── */
   --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.75 0.18 160);
-  --chart-1: oklch(0.75 0.18 160);
-  --chart-2: oklch(0.65 0.15 200);
-  --chart-3: oklch(0.55 0.2 25);
-  --chart-4: oklch(0.7 0.15 60);
-  --chart-5: oklch(0.6 0.18 280);
-  --sidebar: oklch(0.15 0.005 260);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.75 0.18 160);
-  --sidebar-primary-foreground: oklch(0.13 0 0);
-  --sidebar-accent: oklch(0.22 0.005 260);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --input: oklch(1 0 0 / 10%);
+  --ring: oklch(0.78 0.14 195);
+
+  /* ── Charts ── */
+  --chart-1: oklch(0.78 0.14 195);   /* Cyan */
+  --chart-2: oklch(0.74 0.16 155);   /* Emerald */
+  --chart-3: oklch(0.65 0.22 25);    /* Red */
+  --chart-4: oklch(0.80 0.16 75);    /* Amber */
+  --chart-5: oklch(0.70 0.18 285);   /* Violet */
+
+  /* ── Sidebar ── */
+  --sidebar: oklch(0.12 0.012 257);
+  --sidebar-foreground: oklch(0.95 0.005 260);
+  --sidebar-primary: oklch(0.78 0.14 195);
+  --sidebar-primary-foreground: oklch(0.10 0.015 255);
+  --sidebar-accent: oklch(0.18 0.010 260);
+  --sidebar-accent-foreground: oklch(0.95 0.005 260);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.75 0.18 160);
+  --sidebar-ring: oklch(0.78 0.14 195);
+
+  /* ── Agent Identity Colors (CSS custom props for JS access) ── */
+  --agent-finder:    oklch(0.70 0.18 285);    /* Violet */
+  --agent-exploiter: oklch(0.65 0.22 25);     /* Red */
+  --agent-engineer:  oklch(0.80 0.16 75);     /* Amber */
+  --agent-verifier:  oklch(0.74 0.16 155);    /* Emerald */
+
+  /* ── Agent Glow Colors ── */
+  --agent-finder-glow:    oklch(0.70 0.18 285 / 0.25);
+  --agent-exploiter-glow: oklch(0.65 0.22 25 / 0.25);
+  --agent-engineer-glow:  oklch(0.80 0.16 75 / 0.25);
+  --agent-verifier-glow:  oklch(0.74 0.16 155 / 0.25);
+
+  /* ── Easing Tokens ── */
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth:   cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-none ring-1 ring-ring;
   }
   body {
     @apply bg-background text-foreground;
@@ -129,36 +163,294 @@
   }
 }
 
-/* ── Aegis Custom Styles ──────────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   Aegis Keyframe Animations
+   ═══════════════════════════════════════════════════════ */
+
+/* Concentric pulsing rings for active agents */
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Secondary ring, staggered */
+@keyframes pulse-ring-2 {
+  0%   { transform: scale(1);    opacity: 0.5; }
+  70%  { transform: scale(2.2);  opacity: 0; }
+  100% { transform: scale(2.2);  opacity: 0; }
+}
+
+/* Left-to-right gradient fill for pipeline connectors */
+@keyframes pipeline-fill {
+  0%   { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0% 0 0); }
+}
+
+/* Subtle downward CRT scanline drift for terminal blocks */
+@keyframes scanline-drift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 100px; }
+}
+
+/* Pulsing glow for active scan cards */
+@keyframes status-glow {
+  0%, 100% { box-shadow: 0 0 0 1px oklch(0.78 0.14 195 / 0.3), 0 0 20px oklch(0.78 0.14 195 / 0.1); }
+  50%       { box-shadow: 0 0 0 1px oklch(0.78 0.14 195 / 0.6), 0 0 30px oklch(0.78 0.14 195 / 0.2); }
+}
+
+/* Status pulse for dots */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* Entrance animation for agent cards */
+@keyframes agent-appear {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Shimmer sweep for CTA buttons */
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
+
+/* Gradient border rotation */
+@keyframes gradient-rotate {
+  0%   { --angle: 0deg; }
+  100% { --angle: 360deg; }
+}
+
+/* Number count-up odometer feel */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Typewriter cursor blink */
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Aegis Utility Classes
+   ═══════════════════════════════════════════════════════ */
 @layer utilities {
+
+  /* ── Background Patterns ── */
   .aegis-grid-pattern {
     background-image:
-      linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+      linear-gradient(oklch(1 0 0 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(1 0 0 / 0.04) 1px, transparent 1px);
     background-size: 60px 60px;
   }
-  .aegis-glow {
-    box-shadow: 0 0 20px oklch(0.75 0.18 160 / 15%), 0 0 60px oklch(0.75 0.18 160 / 5%);
+
+  .aegis-hex-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M30 0l25.98 15v30L30 60 4.02 45V15z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
+
+  /* ── Glow Effects ── */
+  .aegis-glow {
+    box-shadow: 0 0 20px oklch(0.78 0.14 195 / 0.2), 0 0 60px oklch(0.78 0.14 195 / 0.07);
+  }
+
+  .aegis-glow-red {
+    box-shadow: 0 0 20px oklch(0.65 0.22 25 / 0.25), 0 0 50px oklch(0.65 0.22 25 / 0.1);
+  }
+
+  .aegis-glow-emerald {
+    box-shadow: 0 0 20px oklch(0.74 0.16 155 / 0.25), 0 0 50px oklch(0.74 0.16 155 / 0.1);
+  }
+
+  /* ── Gradient Text ── */
   .aegis-gradient-text {
-    background: linear-gradient(135deg, oklch(0.75 0.18 160), oklch(0.7 0.15 200));
+    background: linear-gradient(135deg, oklch(0.78 0.14 195), oklch(0.74 0.16 155));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  .aegis-gradient-text-danger {
+    background: linear-gradient(135deg, oklch(0.65 0.22 25), oklch(0.80 0.16 75));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Card Hover ── */
   .aegis-card-hover {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)),
+                box-shadow 0.2s ease;
   }
   .aegis-card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px oklch(0 0 0 / 30%);
+    box-shadow: 0 12px 30px oklch(0 0 0 / 35%);
   }
+
+  /* ── Active Scan Card ── */
   .status-pulse {
     animation: pulse-glow 2s ease-in-out infinite;
   }
-}
 
-@keyframes pulse-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  .aegis-active-scan {
+    animation: status-glow 2.5s ease-in-out infinite;
+    border-color: oklch(0.78 0.14 195 / 0.4) !important;
+  }
+
+  /* ── Terminal Container ── */
+  .aegis-terminal {
+    background: #050508;
+    font-family: 'JetBrains Mono', 'Geist Mono', ui-monospace, monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: oklch(0.75 0.06 155);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .aegis-terminal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      oklch(0 0 0 / 0.04) 2px,
+      oklch(0 0 0 / 0.04) 4px
+    );
+    background-size: 100% 4px;
+    animation: scanline-drift 8s linear infinite;
+    pointer-events: none;
+  }
+
+  /* ── Pipeline Node ── */
+  .aegis-pipeline-node {
+    position: relative;
+  }
+
+  .aegis-pipeline-node-active::before,
+  .aegis-pipeline-node-active::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    animation: pulse-ring 1.8s ease-out infinite;
+  }
+
+  .aegis-pipeline-node-active::after {
+    animation: pulse-ring-2 1.8s ease-out infinite 0.4s;
+  }
+
+  /* ── Gradient Border (animated) ── */
+  .aegis-gradient-border {
+    position: relative;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+  }
+
+  .aegis-gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      oklch(0.78 0.14 195),
+      oklch(0.74 0.16 155),
+      oklch(0.78 0.14 195)
+    );
+    background-size: 200% 200%;
+    animation: gradient-sweep 3s linear infinite;
+    z-index: -1;
+    opacity: 0.6;
+  }
+
+  @keyframes gradient-sweep {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ── Agent Pulse Ring Wrapper ── */
+  .agent-pulse-ring {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .agent-pulse-ring::before,
+  .agent-pulse-ring::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    opacity: 0;
+    animation: pulse-ring 1.8s ease-out infinite;
+  }
+
+  .agent-pulse-ring::after {
+    inset: -12px;
+    animation-delay: 0.4s;
+  }
+
+  /* ── CTA Button Shimmer ── */
+  .aegis-btn-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .aegis-btn-shimmer::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 40%;
+    height: 200%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      oklch(1 0 0 / 0.2),
+      transparent
+    );
+    transform: translateX(-100%) skewX(-15deg);
+  }
+
+  .aegis-btn-shimmer:hover::after {
+    animation: shimmer-sweep 0.6s ease forwards;
+  }
+
+  /* ── Glassmorphism Card ── */
+  .aegis-glass {
+    background: oklch(0.14 0.012 258 / 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid oklch(1 0 0 / 0.08);
+  }
+
+  /* ── Staggered Entrance ── */
+  .animate-agent-appear {
+    animation: agent-appear 0.5s var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)) both;
+  }
+
+  .animate-agent-appear:nth-child(1) { animation-delay: 0ms; }
+  .animate-agent-appear:nth-child(2) { animation-delay: 120ms; }
+  .animate-agent-appear:nth-child(3) { animation-delay: 240ms; }
+  .animate-agent-appear:nth-child(4) { animation-delay: 360ms; }
+
+  /* ── Pipeline Fill (connecting line) ── */
+  .pipeline-fill {
+    animation: pipeline-fill 0.6s var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)) both;
+  }
+
+  /* ── Count-up animation ── */
+  .animate-count-up {
+    animation: count-up 0.4s var(--ease-out-expo) both;
+  }
 }

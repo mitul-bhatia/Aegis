@@ -70,11 +70,12 @@ def _install_webhook(full_name: str, github_token: str) -> int:
 
     webhook_url = f"{config.BACKEND_URL}/webhook/github"
     
-    # For local development, GitHub can't reach localhost
-    # We'll install the webhook but it won't receive events until deployed
+    # For local development, GitHub blocks localhost for webhooks (SSRF protection)
+    # We will simulate a successful installation so the UI works, but webhooks won't fire.
     if "localhost" in webhook_url or "127.0.0.1" in webhook_url:
         logger.warning(f"⚠️  Webhook URL is localhost: {webhook_url}")
-        logger.warning("   Webhooks will not work until you deploy to a public URL or use ngrok")
+        logger.warning("   Skipping GitHub API call. Webhooks will not work until you use ngrok or deploy.")
+        return 999999999  # Dummy webhook ID
 
     response = requests.post(
         f"https://api.github.com/repos/{full_name}/hooks",

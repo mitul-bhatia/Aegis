@@ -20,11 +20,12 @@ def clone_or_pull_repo(repo_url: str, local_path: str) -> str:
     
     return local_path
 
-def get_diff(repo_full_name: str, commit_sha: str) -> dict:
+def get_diff(repo_full_name: str, commit_sha: str, github_token: str = None) -> dict:
     """
     Get the list of files changed in a specific commit, with the actual diffs.
     """
-    g = Github(config.GITHUB_TOKEN)
+    token = github_token if github_token else config.GITHUB_TOKEN
+    g = Github(token)
     repo = g.get_repo(repo_full_name)
     commit = repo.get_commit(commit_sha)
     

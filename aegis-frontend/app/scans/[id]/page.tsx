@@ -3,141 +3,218 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { api, type ScanInfo } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { api, type ScanInfo, type ScanStatus, isActiveScan } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { PipelineTimeline } from "@/components/PipelineTimeline";
+import { AgentAvatar } from "@/components/AgentAvatar";
+import { LiveTimer } from "@/components/LiveTimer";
+import ExploitTerminal from "@/components/ExploitTerminal";
+import CodeDiff from "@/components/CodeDiff";
 import {
   Shield,
   ArrowLeft,
   ExternalLink,
-  Bug,
-  Wrench,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  Clock,
   GitCommit,
   GitBranch,
   FileCode2,
   AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Sparkles,
 } from "lucide-react";
 
+// ── Severity badge ────────────────────────────────────────
 function SeverityBadge({ severity }: { severity: string | null }) {
-  const colors: Record<string, string> = {
-    ERROR: "bg-red-500/15 text-red-400 border-red-500/30",
-    WARNING: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-    INFO: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  };
-  const s = (severity || "INFO").toUpperCase();
+  if (!severity) return null;
+  const s = severity.toUpperCase();
+  const cls =
+    s === "ERROR" || s === "CRITICAL" || s === "HIGH"
+      ? "bg-red-500/15 text-red-400 border-red-500/30"
+      : s === "WARNING" || s === "MEDIUM"
+      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+      : "bg-blue-500/15 text-blue-400 border-blue-500/30";
   return (
-    <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${colors[s] || colors.INFO}`}>
+    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${cls}`}>
       {s}
     </span>
   );
 }
 
-function StatusTimeline({ status }: { status: string }) {
-  const steps = [
-    { key: "scanning", label: "Scanning", icon: Shield },
-    { key: "exploiting", label: "Exploiting", icon: Bug },
-    { key: "exploit_confirmed", label: "Exploit Confirmed", icon: AlertTriangle },
-    { key: "patching", label: "Patching", icon: Wrench },
-    { key: "verifying", label: "Verifying", icon: CheckCircle2 },
-    { key: "fixed", label: "Fixed", icon: CheckCircle2 },
-  ];
+// ── Status badge ──────────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    queued:            { label: "Queued",           cls: "bg-white/5 text-muted-foreground border-white/10" },
+    scanning:          { label: "Scanning",         cls: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+    exploiting:        { label: "Exploiting",       cls: "bg-red-500/15 text-red-400 border-red-500/30 status-pulse" },
+    exploit_confirmed: { label: "Exploit Found",    cls: "bg-red-500/15 text-red-400 border-red-500/30" },
+    patching:          { label: "Patching",         cls: "bg-amber-500/15 text-amber-400 border-amber-500/30 status-pulse" },
+    verifying:         { label: "Verifying",        cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 status-pulse" },
+    fixed:             { label: "Fixed",            cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+    false_positive:    { label: "False Positive",   cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+    clean:             { label: "Clean",            cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+    failed:            { label: "Failed",           cls: "bg-red-500/15 text-red-400 border-red-500/30" },
+  };
+  const c = map[status] ?? { label: status, cls: "bg-white/5 text-muted-foreground border-white/10" };
+  return (
+    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${c.cls}`}>
+      {c.label}
+    </span>
+  );
+}
 
-  const order = steps.map((s) => s.key);
-  const currentIdx = order.indexOf(status);
-
-  // Handle terminal states
-  const isFailed = status === "failed";
-  const isFalsePositive = status === "false_positive";
-  const isClean = status === "clean";
-
-  if (isClean || isFalsePositive) {
-    return (
-      <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card p-4">
-        <CheckCircle2 className="h-5 w-5 text-primary" />
-        <span className="text-sm font-medium">
-          {isClean ? "No vulnerabilities found" : "False positive — exploit failed in sandbox"}
-        </span>
+// ── Agent Working Panel (right panel when active) ─────────
+function AgentWorkingPanel({ scan }: { scan: ScanInfo }) {
+  const agent = scan.current_agent as "finder" | "exploiter" | "engineer" | "verifier" | null;
+  if (!agent) return null;
+  return (
+    <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
+      <AgentAvatar agent={agent} size="lg" showRing={true} showLabel={true} />
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium text-foreground">
+          {scan.agent_message ?? `The ${agent} is working...`}
+        </p>
+        <div className="flex items-center justify-center gap-2 text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <LiveTimer startTime={scan.created_at} isActive={true} />
+        </div>
       </div>
-    );
+    </div>
+  );
+}
+
+// ── Right panel (context-aware) ───────────────────────────
+function ActivePanel({ scan }: { scan: ScanInfo }) {
+  const status = scan.status;
+
+  // In-progress — show current agent working
+  if (isActiveScan(status as ScanStatus) && !scan.exploit_output && !scan.patch_diff) {
+    return <AgentWorkingPanel scan={scan} />;
   }
 
-  return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {steps.map((step, idx) => {
-        const Icon = step.icon;
-        const isDone = currentIdx > idx || status === "fixed";
-        const isCurrent = currentIdx === idx && !isFailed;
-        const isActive = isDone || isCurrent;
+  // Exploiting / confirmed — show terminal (even if still patching)
+  const showTerminal = scan.exploit_output;
+  // Patching done — show diff
+  const showDiff = (status === "fixed" || status === "verifying") && scan.original_code && scan.patch_diff;
+  // Still patching, no diff yet
+  const stillPatching = (status === "patching" || status === "verifying") && !scan.patch_diff;
 
-        return (
-          <div key={step.key} className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-all ${
-              isCurrent ? "border-primary bg-primary/10 text-primary status-pulse" :
-              isDone ? "border-primary/30 bg-primary/5 text-primary" :
-              "border-border/50 bg-secondary/30 text-muted-foreground"
-            }`}>
-              <Icon className={`h-3 w-3 ${isCurrent ? "animate-pulse" : ""}`} />
-              {step.label}
-            </div>
-            {idx < steps.length - 1 && (
-              <div className={`h-px w-4 ${isActive ? "bg-primary/40" : "bg-border/40"}`} />
-            )}
-          </div>
-        );
-      })}
-      {isFailed && (
-        <div className="flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive">
-          <XCircle className="h-3 w-3" /> Failed
-        </div>
+  return (
+    <div className="space-y-4">
+      {showTerminal && (
+        <ExploitTerminal
+          output={scan.exploit_output!}
+          status={
+            status === "fixed" || status === "verifying" ? "vulnerable"
+            : status === "false_positive" ? "not_vulnerable"
+            : status === "exploiting" ? "running"
+            : "vulnerable"
+          }
+          isStreaming={status === "exploiting"}
+        />
+      )}
+
+      {stillPatching && (
+        <AgentWorkingPanel scan={scan} />
+      )}
+
+      {showDiff && (
+        <CodeDiff
+          before={scan.original_code!}
+          after={scan.patch_diff!}
+          filename={scan.vulnerable_file ?? "vulnerable_file"}
+          language="python"
+        />
+      )}
+
+      {/* Fallback for in-progress without data yet */}
+      {!showTerminal && !showDiff && !stillPatching && isActiveScan(status as ScanStatus) && (
+        <AgentWorkingPanel scan={scan} />
       )}
     </div>
   );
 }
 
-function CodeBlock({ title, content, language = "text" }: {
-  title: string;
-  content: string;
-  language?: string;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = content.split("\n");
-  const preview = lines.slice(0, 8).join("\n");
-  const needsExpand = lines.length > 8;
-
+// ── PR Result Card ────────────────────────────────────────
+function PRResultCard({ scan }: { scan: ScanInfo }) {
+  if (!scan.pr_url) return null;
   return (
-    <div className="rounded-lg border border-border/50 overflow-hidden">
-      <div className="flex items-center justify-between bg-secondary/50 px-4 py-2.5">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          {title}
-        </span>
-        {needsExpand && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-primary hover:underline"
-          >
-            {expanded ? "Collapse" : `Show all ${lines.length} lines`}
-          </button>
-        )}
+    <div className="aegis-gradient-border rounded-xl p-px mt-4">
+      <div className="rounded-xl bg-card p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15">
+              <Sparkles className="h-5 w-5 text-emerald-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-emerald-400">Vulnerability Fixed!</p>
+              <p className="text-sm text-muted-foreground">
+                {scan.vulnerability_type} in{" "}
+                <code className="text-primary">{scan.vulnerable_file}</code> has been patched.
+              </p>
+            </div>
+          </div>
+          <a href={scan.pr_url} target="_blank" rel="noopener noreferrer">
+            <Button className="shrink-0 gap-2 bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold aegis-glow-emerald">
+              <ExternalLink className="h-4 w-4" />
+              Review PR on GitHub
+            </Button>
+          </a>
+        </div>
       </div>
-      <pre className="overflow-x-auto p-4 text-xs leading-relaxed text-foreground/90 bg-background/50 font-mono">
-        <code>{expanded ? content : preview}{needsExpand && !expanded ? "\n..." : ""}</code>
-      </pre>
     </div>
   );
 }
 
+// ── Clean / False Positive result card ───────────────────
+function ResultCard({ scan }: { scan: ScanInfo }) {
+  if (scan.status === "clean") {
+    return (
+      <div className="flex items-center gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+        <CheckCircle2 className="h-8 w-8 text-emerald-400 shrink-0" />
+        <div>
+          <p className="font-semibold text-emerald-400">Code is clean!</p>
+          <p className="text-sm text-muted-foreground">No vulnerabilities found in this commit.</p>
+        </div>
+      </div>
+    );
+  }
+  if (scan.status === "false_positive") {
+    return (
+      <div className="flex items-center gap-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+        <AlertTriangle className="h-8 w-8 text-amber-400 shrink-0" />
+        <div>
+          <p className="font-semibold text-amber-400">False Positive</p>
+          <p className="text-sm text-muted-foreground">
+            The Finder flagged a potential issue, but the Exploiter could not confirm it was
+            exploitable in the Docker sandbox.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (scan.status === "failed") {
+    return (
+      <div className="flex items-center gap-4 rounded-xl border border-red-500/20 bg-red-500/5 p-5">
+        <XCircle className="h-8 w-8 text-red-400 shrink-0" />
+        <div>
+          <p className="font-semibold text-red-400">Pipeline Failed</p>
+          <p className="text-sm text-muted-foreground">
+            {scan.error_message ?? "An error occurred during the scan. Human review required."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+// ── Main Page ─────────────────────────────────────────────
 export default function ScanDetailPage() {
   const params = useParams();
   const scanId = Number(params.id);
   const [scan, setScan] = useState<ScanInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     async function fetchScan() {
@@ -145,7 +222,7 @@ export default function ScanDetailPage() {
         const data = await api.getScan(scanId);
         setScan(data);
       } catch {
-        setError("Scan not found");
+        // handled by null check
       } finally {
         setLoading(false);
       }
@@ -153,15 +230,14 @@ export default function ScanDetailPage() {
 
     fetchScan();
 
-    // Poll if scan is still in progress
+    // Poll every 2s while active, stop on terminal state
     const interval = setInterval(async () => {
       const data = await api.getScan(scanId).catch(() => null);
       if (data) {
         setScan(data);
-        const terminal = ["fixed", "failed", "false_positive", "clean"];
-        if (terminal.includes(data.status)) clearInterval(interval);
+        if (!isActiveScan(data.status as ScanStatus)) clearInterval(interval);
       }
-    }, 3000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [scanId]);
@@ -169,184 +245,149 @@ export default function ScanDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Shield className="h-12 w-12 text-primary status-pulse" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
 
-  if (error || !scan) {
+  if (!scan) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-destructive">{error || "Scan not found"}</p>
-          <Link href="/dashboard" className="mt-4 text-sm text-primary underline">
-            Back to dashboard
+        <div className="text-center space-y-3">
+          <XCircle className="mx-auto h-10 w-10 text-destructive" />
+          <p className="text-muted-foreground">Scan not found</p>
+          <Link href="/dashboard">
+            <Button variant="outline" size="sm">Back to Dashboard</Button>
           </Link>
         </div>
       </div>
     );
   }
 
-  const isTerminal = ["fixed", "failed", "false_positive", "clean"].includes(scan.status);
+  const active = isActiveScan(scan.status as ScanStatus);
+  const showResultCard = ["clean", "false_positive", "failed"].includes(scan.status);
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
+      {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-4xl items-center gap-4 px-6 py-3">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="gap-1.5">
-              <ArrowLeft className="h-4 w-4" /> Dashboard
-            </Button>
-          </Link>
-          <Separator orientation="vertical" className="h-5" />
-          <Shield className="h-5 w-5 text-primary" />
-          <span className="font-semibold">Scan #{scan.id}</span>
-          {!isTerminal && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+                <ArrowLeft className="h-4 w-4" />
+                Dashboard
+              </Button>
+            </Link>
+            <div className="h-4 w-px bg-border" />
+            <Shield className="h-5 w-5 text-primary" />
+            <span className="font-semibold text-sm">Scan #{scan.id}</span>
+            {scan.vulnerability_type && (
+              <>
+                <div className="h-4 w-px bg-border" />
+                <span className="text-sm text-muted-foreground">{scan.vulnerability_type}</span>
+                <SeverityBadge severity={scan.severity} />
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {active && <LiveTimer startTime={scan.created_at} isActive={true} />}
+            <StatusBadge status={scan.status} />
+            {scan.pr_url && (
+              <a href={scan.pr_url} target="_blank" rel="noopener noreferrer">
+                <Button size="sm" variant="outline" className="gap-1.5 text-emerald-400 border-emerald-500/30">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View PR
+                </Button>
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
-        {/* Overview */}
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-base">Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Commit</p>
-                <div className="flex items-center gap-1.5">
-                  <GitCommit className="h-3.5 w-3.5 text-muted-foreground" />
-                  <code className="text-sm font-mono">{scan.commit_sha.slice(0, 8)}</code>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Branch</p>
-                <div className="flex items-center gap-1.5">
-                  <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
-                  <code className="text-sm font-mono text-primary">{scan.branch}</code>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Severity</p>
-                <SeverityBadge severity={scan.severity} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Started</p>
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-sm">{new Date(scan.created_at).toLocaleTimeString()}</span>
-                </div>
-              </div>
+      {/* ── Main Layout ── */}
+      <main className="mx-auto max-w-7xl px-6 py-8">
+        {/* Meta row */}
+        <div className="mb-6 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <GitCommit className="h-3.5 w-3.5" />
+            <code className="font-mono">{scan.commit_sha.slice(0, 8)}</code>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <GitBranch className="h-3.5 w-3.5" />
+            <code className="font-mono text-primary">{scan.branch}</code>
+          </span>
+          {scan.vulnerable_file && (
+            <span className="flex items-center gap-1.5">
+              <FileCode2 className="h-3.5 w-3.5" />
+              <code className="font-mono text-primary">{scan.vulnerable_file}</code>
+            </span>
+          )}
+          <span>{new Date(scan.created_at).toLocaleString()}</span>
+        </div>
+
+        {/* Two-panel layout */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
+          {/* ── Left: Pipeline Timeline ── */}
+          <div className="space-y-6">
+            <div className="rounded-xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm">
+              <h2 className="mb-5 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Agent Pipeline
+              </h2>
+              <PipelineTimeline scan={scan} />
             </div>
 
-            {scan.vulnerability_type && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Vulnerability</p>
-                <div className="flex items-center gap-2">
-                  <Bug className="h-4 w-4 text-destructive" />
-                  <span className="font-semibold">{scan.vulnerability_type}</span>
-                  {scan.vulnerable_file && (
-                    <>
-                      <span className="text-muted-foreground text-sm">in</span>
-                      <div className="flex items-center gap-1">
-                        <FileCode2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        <code className="text-sm text-primary">{scan.vulnerable_file}</code>
-                      </div>
-                    </>
-                  )}
-                </div>
+            {/* Result cards for terminal states */}
+            {showResultCard && <ResultCard scan={scan} />}
+          </div>
+
+          {/* ── Right: Active Content ── */}
+          <div className="space-y-4">
+            {/* Active panel (terminal, diff, or agent working) */}
+            {!showResultCard && <ActivePanel scan={scan} />}
+
+            {/* Show terminal + diff stacked when fixed */}
+            {scan.status === "fixed" && (
+              <>
+                {scan.exploit_output && (
+                  <ExploitTerminal
+                    output={scan.exploit_output}
+                    status="vulnerable"
+                    title="Exploit Proof — Docker Sandbox"
+                  />
+                )}
+                {scan.original_code && scan.patch_diff && (
+                  <CodeDiff
+                    before={scan.original_code}
+                    after={scan.patch_diff}
+                    filename={scan.vulnerable_file ?? "patch"}
+                    language="python"
+                  />
+                )}
+                <PRResultCard scan={scan} />
+              </>
+            )}
+
+            {/* Fallback: show false positive terminal */}
+            {scan.status === "false_positive" && scan.exploit_output && (
+              <ExploitTerminal
+                output={scan.exploit_output}
+                status="not_vulnerable"
+                title="Exploit Output — Not Confirmed"
+              />
+            )}
+
+            {/* Error message */}
+            {scan.status === "failed" && scan.error_message && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                <p className="text-xs font-mono text-red-400 whitespace-pre-wrap">{scan.error_message}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Status timeline */}
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-base">Pipeline Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StatusTimeline status={scan.status} />
-          </CardContent>
-        </Card>
-
-        {/* Exploit Output */}
-        {scan.exploit_output && (
-          <Card className="border-destructive/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base text-destructive">
-                <Bug className="h-4 w-4" /> Exploit Proof
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CodeBlock
-                title="Sandbox Output"
-                content={scan.exploit_output}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Patch Diff */}
-        {scan.patch_diff && (
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base text-primary">
-                <Wrench className="h-4 w-4" /> Security Patch
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CodeBlock
-                title="Patched Code"
-                content={scan.patch_diff}
-                language="python"
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Error */}
-        {scan.error_message && (
-          <Card className="border-destructive/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base text-destructive">
-                <XCircle className="h-4 w-4" /> Error
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <pre className="text-xs text-destructive/80 whitespace-pre-wrap font-mono">
-                {scan.error_message}
-              </pre>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* PR Link */}
-        {scan.pr_url && (
-          <Card className="border-primary/20 bg-primary/5 aegis-glow">
-            <CardContent className="flex items-center justify-between p-5">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-6 w-6 text-primary" />
-                <div>
-                  <p className="font-semibold">Vulnerability fixed!</p>
-                  <p className="text-sm text-muted-foreground">
-                    A PR with the security patch is ready for your review.
-                  </p>
-                </div>
-              </div>
-              <Button
-                className="aegis-glow"
-                render={
-                  <a href={scan.pr_url} target="_blank" rel="noopener noreferrer">
-                    Review PR <ExternalLink className="ml-2 h-4 w-4" />
-                  </a>
-                }
-              />
-            </CardContent>
-          </Card>
-        )}
+          </div>
+        </div>
       </main>
     </div>
   );

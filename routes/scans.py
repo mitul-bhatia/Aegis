@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from database.db import SessionLocal
-from database.models import Scan
+from database.models import Scan, Repo, ScanStatus
 from typing import Optional
 
 router = APIRouter()
@@ -32,7 +32,7 @@ async def scan_event_generator(repo_id: Optional[int] = None):
     Yields SSE events for scan status updates.
     Polls DB every 1 second and emits scans that have changed or are new.
     """
-    seen_scans = {}  # scan_id -> (status, updated_at)
+    seen_scans = {}  # scan_id -> status
     
     # Send initial heartbeat
     yield f": heartbeat\n\n"
@@ -46,9 +46,9 @@ async def scan_event_generator(repo_id: Optional[int] = None):
             scans = query.all()
             
             for scan in scans:
-                scan_key = (scan.status, str(scan.created_at))
+                scan_key = (scan.status, scan.agent_message, str(scan.created_at))
                 
-                # Emit if it's a new scan or status changed
+                # Emit if it's a new scan or status/agent changed
                 if scan.id not in seen_scans or seen_scans.get(scan.id) != scan_key:
                     seen_scans[scan.id] = scan_key
                     data = {
@@ -60,13 +60,15 @@ async def scan_event_generator(repo_id: Optional[int] = None):
                         "vulnerability_type": scan.vulnerability_type,
                         "severity": scan.severity,
                         "vulnerable_file": scan.vulnerable_file,
+                        "current_agent": scan.current_agent,
+                        "agent_message": scan.agent_message,
                         "exploit_output": scan.exploit_output,
                         "patch_diff": scan.patch_diff,
                         "pr_url": scan.pr_url,
                         "created_at": scan.created_at.isoformat() if scan.created_at else None,
                         "completed_at": scan.completed_at.isoformat() if scan.completed_at else None
                     }
-                    logger.info(f"SSE: Emitting scan {scan.id} with status {scan.status}")
+                    logger.info(f"SSE: Emitting scan {scan.id} status={scan.status} agent={scan.current_agent}")
                     yield f"data: {json.dumps(data)}\n\n"
         except Exception as e:
             logger.error(f"SSE error: {e}")
@@ -94,6 +96,34 @@ async def live_scans(repo_id: Optional[int] = None):
     )
 
 
+def _scan_to_dict(s: Scan) -> dict:
+    """Convert a Scan ORM object to the full API response dict."""
+    return {
+        "id": s.id,
+        "repo_id": s.repo_id,
+        "commit_sha": s.commit_sha,
+        "branch": s.branch,
+        "status": s.status,
+        "vulnerability_type": s.vulnerability_type,
+        "severity": s.severity,
+        "vulnerable_file": s.vulnerable_file,
+        "exploit_output": s.exploit_output,
+        "patch_diff": s.patch_diff,
+        "pr_url": s.pr_url,
+        "error_message": s.error_message,
+        # Agent-identity fields (new)
+        "original_code": s.original_code,
+        "exploit_script": s.exploit_script,
+        "findings_json": s.findings_json,
+        "current_agent": s.current_agent,
+        "agent_message": s.agent_message,
+        "patch_attempts": s.patch_attempts,
+        # Timing
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "completed_at": s.completed_at.isoformat() if s.completed_at else None
+    }
+
+
 @router.get("/api/scans")
 async def list_scans(repo_id: Optional[int] = None, limit: int = 20):
     """
@@ -105,24 +135,7 @@ async def list_scans(repo_id: Optional[int] = None, limit: int = 20):
         if repo_id:
             query = query.filter(Scan.repo_id == repo_id)
         scans = query.all()
-        return [
-            {
-                "id": s.id,
-                "repo_id": s.repo_id,
-                "commit_sha": s.commit_sha,
-                "branch": s.branch,
-                "status": s.status,
-                "vulnerability_type": s.vulnerability_type,
-                "severity": s.severity,
-                "vulnerable_file": s.vulnerable_file,
-                "exploit_output": s.exploit_output,
-                "patch_diff": s.patch_diff,
-                "pr_url": s.pr_url,
-                "created_at": s.created_at.isoformat() if s.created_at else None,
-                "completed_at": s.completed_at.isoformat() if s.completed_at else None
-            }
-            for s in scans
-        ]
+        return [_scan_to_dict(s) for s in scans]
     finally:
         db.close()
 
@@ -137,22 +150,7 @@ async def get_scan(scan_id: int):
         scan = db.query(Scan).filter(Scan.id == scan_id).first()
         if not scan:
             return {"error": "Scan not found"}, 404
-        
-        return {
-            "id": scan.id,
-            "repo_id": scan.repo_id,
-            "commit_sha": scan.commit_sha,
-            "branch": scan.branch,
-            "status": scan.status,
-            "vulnerability_type": scan.vulnerability_type,
-            "severity": scan.severity,
-            "vulnerable_file": scan.vulnerable_file,
-            "exploit_output": scan.exploit_output,
-            "patch_diff": scan.patch_diff,
-            "pr_url": scan.pr_url,
-            "created_at": scan.created_at.isoformat() if scan.created_at else None,
-            "completed_at": scan.completed_at.isoformat() if scan.completed_at else None
-        }
+        return _scan_to_dict(scan)
     finally:
         db.close()
 
@@ -164,7 +162,6 @@ async def trigger_manual_scan(repo_id: int):
     Useful for testing without webhooks.
     """
     from orchestrator import run_aegis_pipeline
-    from database.models import Repo
     import requests
     
     db = SessionLocal()
@@ -173,27 +170,28 @@ async def trigger_manual_scan(repo_id: int):
         if not repo:
             return {"error": "Repository not found"}, 404
         
-        # Get latest commit from GitHub
-        import config
-        api_url = f"https://api.github.com/repos/{repo.full_name}/commits/main"
-        headers = {}
-        if config.GITHUB_TOKEN:
-            headers["Authorization"] = f"token {config.GITHUB_TOKEN}"
-        response = requests.get(api_url, headers=headers)
-        if response.status_code != 200:
-            logger.error(f"GitHub API error: {response.status_code} - {response.text}")
-            return {"error": f"Failed to fetch commit: {response.status_code}", "details": response.text}, 500
-        
-        commit_data = response.json()
-        commit_sha = commit_data["sha"]
-        files_changed = [f["filename"] for f in commit_data["files"]]
+        # Get latest commit from GitHub using PyGithub
+        try:
+            from github import Github
+            import config
+            g = Github(config.GITHUB_TOKEN)
+            github_repo = g.get_repo(repo.full_name)
+            default_branch = github_repo.default_branch
+            commit_sha = github_repo.get_branch(default_branch).commit.sha
+            
+            # Get files changed in this commit
+            commit = github_repo.get_commit(commit_sha)
+            files_changed = [f.filename for f in commit.files]
+        except Exception as gh_err:
+            logger.error(f"GitHub API error: {gh_err}")
+            return {"error": "Failed to fetch commit", "details": str(gh_err)}, 500
         
         # Create push info
         push_info = {
             "repo_name": repo.full_name,
             "repo_url": f"https://github.com/{repo.full_name}.git",
             "commit_sha": commit_sha,
-            "branch": "main",
+            "branch": default_branch,
             "files_changed": files_changed,
             "is_pr": False,
         }
@@ -223,6 +221,70 @@ async def trigger_manual_scan(repo_id: int):
             "repo": repo.full_name,
             "commit": commit_sha[:8],
             "files": files_changed
+        }
+    finally:
+        db.close()
+
+
+@router.get("/api/stats")
+async def get_stats(user_id: int):
+    """
+    Aggregate stats for dashboard stat cards.
+    Returns total repos, active scans, vulns fixed, etc.
+    """
+    db = SessionLocal()
+    try:
+        # Get user's repos
+        repos = db.query(Repo).filter(Repo.user_id == user_id).all()
+        repo_ids = [r.id for r in repos]
+
+        if not repo_ids:
+            return {
+                "total_repos": 0,
+                "active_scans": 0,
+                "vulns_fixed": 0,
+                "total_scans": 0,
+                "false_positives": 0,
+                "last_scan_at": None
+            }
+
+        active_statuses = [
+            ScanStatus.QUEUED.value,
+            ScanStatus.SCANNING.value,
+            ScanStatus.EXPLOITING.value,
+            ScanStatus.EXPLOIT_CONFIRMED.value,
+            ScanStatus.PATCHING.value,
+            ScanStatus.VERIFYING.value,
+        ]
+
+        total_scans = db.query(Scan).filter(Scan.repo_id.in_(repo_ids)).count()
+
+        active_scans = db.query(Scan).filter(
+            Scan.repo_id.in_(repo_ids),
+            Scan.status.in_(active_statuses)
+        ).count()
+
+        vulns_fixed = db.query(Scan).filter(
+            Scan.repo_id.in_(repo_ids),
+            Scan.status == ScanStatus.FIXED.value
+        ).count()
+
+        false_positives = db.query(Scan).filter(
+            Scan.repo_id.in_(repo_ids),
+            Scan.status == ScanStatus.FALSE_POSITIVE.value
+        ).count()
+
+        last_scan = db.query(Scan).filter(
+            Scan.repo_id.in_(repo_ids)
+        ).order_by(Scan.created_at.desc()).first()
+
+        return {
+            "total_repos": len(repos),
+            "active_scans": active_scans,
+            "vulns_fixed": vulns_fixed,
+            "total_scans": total_scans,
+            "false_positives": false_positives,
+            "last_scan_at": last_scan.created_at.isoformat() if last_scan else None
         }
     finally:
         db.close()

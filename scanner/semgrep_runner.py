@@ -23,6 +23,11 @@ def _resolve_semgrep_bin() -> str | None:
     if path_semgrep:
         return path_semgrep
 
+    # Explicit fallback for Homebrew on Mac
+    for fallback in ["/opt/homebrew/bin/semgrep", "/usr/local/bin/semgrep"]:
+        if os.path.isfile(fallback):
+            return fallback
+
     venv = os.environ.get("VIRTUAL_ENV", "")
     if venv:
         venv_semgrep = os.path.join(venv, "bin", "semgrep")
@@ -35,18 +40,36 @@ def _resolve_semgrep_bin() -> str | None:
 def _parse_semgrep_output(stdout: str) -> list:
     """Parse Semgrep JSON output into the normalized finding structure."""
     try:
-        output = json.loads(stdout)
+        # Semgrep often outputs ASCII banners even with --quiet. 
+        # Find the actual JSON boundaries to ignore it.
+        start_idx = stdout.find("{")
+        end_idx = stdout.rfind("}")
+        
+        if start_idx == -1 or end_idx == -1 or start_idx > end_idx:
+            logger.error("No JSON object found in Semgrep output.")
+            return []
+            
+        json_str = stdout[start_idx:end_idx+1]
+        output = json.loads(json_str)
 
         findings = []
         for finding in output.get("results", []):
+            code_snippet = finding["extra"]["lines"]
+            if code_snippet == "requires login":
+                code_snippet = ""
+                
+            file_path = finding["path"]
+            if file_path.startswith("/"):
+                file_path = os.path.basename(file_path)
+
             findings.append({
                 "rule_id": finding["check_id"],
                 "severity": finding["extra"]["severity"],
                 "message": finding["extra"]["message"],
-                "file": finding["path"],
+                "file": file_path,
                 "line_start": finding["start"]["line"],
                 "line_end": finding["end"]["line"],
-                "code_snippet": finding["extra"]["lines"],
+                "code_snippet": code_snippet,
                 "category": finding["extra"].get("metadata", {}).get("category", "unknown"),
             })
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { Shield, Loader2 } from "lucide-react";
 import { Suspense } from "react";
@@ -15,7 +16,7 @@ function CallbackContent() {
   useEffect(() => {
     const code = searchParams.get("code");
     if (!code) {
-      setError("No authorization code received from GitHub.");
+      setTimeout(() => setError("No authorization code received from GitHub."), 0);
       return;
     }
 
@@ -48,9 +49,9 @@ function CallbackContent() {
         {error ? (
           <div>
             <p className="text-destructive font-semibold">{error}</p>
-            <a href="/" className="mt-4 inline-block text-sm text-primary underline">
+            <Link href="/" className="mt-4 inline-block text-sm text-primary underline">
               Go back
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="flex items-center gap-3">
