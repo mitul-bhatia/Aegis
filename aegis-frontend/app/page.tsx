@@ -9,10 +9,22 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+<<<<<<< HEAD
     if (user) {
       router.push("/dashboard");
     }
   }, [user, router]);
+=======
+    const uid = localStorage.getItem("aegis_user_id");
+    if (uid) router.replace("/dashboard");
+  }, [router]);
+
+  function handleLogin() {
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, ''); // Remove trailing slash
+    const redirectUri = `${apiUrl}/api/auth/github/callback`;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,write:repo_hook&redirect_uri=${redirectUri}`;
+  }
+>>>>>>> origin/main
 
   return (
     <div className="min-h-screen bg-[#050810] text-slate-200 relative overflow-hidden flex flex-col">

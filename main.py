@@ -24,7 +24,11 @@ app = FastAPI(title="Aegis Security System")
 # CORS — allow the Next.js frontend to talk to the backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[config.FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=[
+        config.FRONTEND_URL,
+        "http://localhost:3000",
+        "https://aegis-ecru-eta.vercel.app"  # New Vercel URL
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
