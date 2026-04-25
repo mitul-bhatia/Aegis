@@ -1,3 +1,0 @@
-"""
-Scheduler module for Aegis
-"""

@@ -2,14 +2,29 @@ import logging
 import json
 from typing import List, Dict
 from pydantic import BaseModel, Field
-from groq import Groq
 
 import config
 
 logger = logging.getLogger(__name__)
 
-# Initialize Groq client (ultra-fast LPU inference)
-client = Groq(api_key=config.GROQ_API_KEY)
+# Initialize AI client with fallback
+try:
+    if config.GROQ_API_KEY and config.GROQ_API_KEY != "gsk_placeholder_add_your_groq_key_here":
+        from groq import Groq
+        client = Groq(api_key=config.GROQ_API_KEY)
+        model_name = "llama-3.1-70b-versatile"
+        logger.info("Using Groq for Finder agent")
+    else:
+        from mistralai.client import Mistral
+        client = Mistral(api_key=config.MISTRAL_API_KEY)
+        model_name = "codestral-2508"
+        logger.info("Using Mistral for Finder agent")
+except Exception as e:
+    logger.warning(f"AI client initialization failed: {e}")
+    from mistralai.client import Mistral
+    client = Mistral(api_key=config.MISTRAL_API_KEY)
+    model_name = "codestral-2508"
+    logger.info("Fallback to Mistral for Finder agent")
 
 
 class VulnerabilityFinding(BaseModel):
@@ -93,14 +108,14 @@ def run_finder_agent(diff: Dict, semgrep_findings: List[Dict], rag_context: str)
 
 Identify ALL vulnerabilities. Output ONLY a JSON array. No markdown. No explanation."""
 
-    logger.info(f"Agent 1 (Finder) analyzing code with Groq/{config.HACKER_MODEL}...")
+    logger.info(f"Agent 1 (Finder) analyzing code with {model_name}...")
     
     try:
-        # Call Groq API (OpenAI-compatible, ultra-fast)
+        # Call AI API
         response = client.chat.completions.create(
-            model=config.HACKER_MODEL,
+            model=model_name,
             max_tokens=config.HACKER_MAX_TOKENS,
-            timeout=config.HACKER_TIMEOUT_MS / 1000,  # Groq uses seconds
+            timeout=config.HACKER_TIMEOUT_MS / 1000,
             messages=[
                 {"role": "system", "content": FINDER_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt}
