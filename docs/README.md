@@ -147,3 +147,9 @@ If you can't find what you're looking for:
 **Documentation Status**: ✅ Complete  
 **Last Updated**: April 23, 2026  
 **Maintained by**: Aegis Team
+
+---
+
+## 🛠️ Demo Mode
+
+For the purposes of the hackathon, Aegis runs with `DEMO_MODE=true` configured in the backend `.env` file. This skips the Docker Sandbox execution to avoid authentication and permission issues with the local Docker daemon, and instead simulates a successful exploit and verification by the agents to demonstrate the end-to-end capabilities, including the Code Diff view and Pull Request generation.
