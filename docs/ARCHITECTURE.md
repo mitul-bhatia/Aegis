@@ -1,494 +1,186 @@
-# 🛡️ Aegis System Architecture
+# Aegis Architecture Overview
 
-**Last Updated**: April 23, 2026  
-**Status**: Production Ready
+## System Architecture
 
----
+Aegis is an autonomous security system that monitors GitHub repositories, detects vulnerabilities, generates exploits to confirm them, creates patches, and automatically opens pull requests.
 
-## Overview
-
-Aegis is an autonomous white-hat vulnerability remediation system that uses a 4-agent AI architecture to automatically detect, exploit, patch, and verify security vulnerabilities in GitHub repositories.
-
----
-
-## System Flow
+### Core Components
 
 ```
-GitHub Push
-    ↓
-Webhook Handler (main.py)
-    ↓
-Orchestrator (orchestrator.py)
-    ↓
-┌─────────────────────────────────────────────┐
-│ 1. Clone Repo + Get Diff                   │
-│ 2. Semgrep Scan                             │
-│    └─ Status: "scanning"                    │
-│                                             │
-│ 3. Agent 1 (Finder): Identify ALL vulns    │
-│    └─ Returns: List[VulnerabilityFinding]  │
-│    └─ Status: "scanning" (with details)    │
-│                                             │
-│ 4. For each finding:                        │
-│    ├─ Agent 2 (Exploiter): Write exploit   │
-│    │  └─ Status: "exploiting"              │
-│    ├─ Docker: Test exploit                 │
-│    └─ If confirmed: Continue               │
-│       └─ Status: "exploit_confirmed"       │
-│                                             │
-│ 5. Agent 3 (Engineer): Patch + Tests        │
-│    └─ Returns: patched_code + test_code    │
-│    └─ Status: "patching"                   │
-│                                             │
-│ 6. Agent 4 (Verifier): Verify fix           │
-│    ├─ Test patch in Docker                 │
-│    ├─ Run exploit on patched code          │
-│    ├─ If exploit fails: Success!           │
-│    └─ Update RAG with patched code         │
-│       └─ Status: "verifying"               │
-│                                             │
-│ 7. Create PR                                │
-│    └─ Status: "fixed" (with pr_url)        │
-└─────────────────────────────────────────────┘
-    ↓
-SSE Broadcast to Frontend
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   GitHub API    │    │   FastAPI       │    │   ChromaDB      │
+│   Integration   │◄──►│   Backend       │◄──►│   Vector Store  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Webhook       │    │   LangGraph     │    │   RAG System    │
+│   Handler       │    │   Pipeline      │    │   Context       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Orchestrator  │    │   7-Agent       │    │   Docker        │
+│   Coordinator   │◄──►│   System        │◄──►│   Sandbox       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
----
+### Technology Stack
 
-## 4-Agent Architecture
+#### Backend Infrastructure
+- **FastAPI**: REST API server with async support
+- **SQLAlchemy**: Database ORM with SQLite backend
+- **LangGraph**: Agent workflow orchestration
+- **ChromaDB**: Vector database for RAG context
+- **Docker**: Sandboxed exploit execution environment
 
-### Agent 1: Finder
-**File**: `agents/finder.py`  
-**Model**: Codestral-2508  
-**Purpose**: Identifies ALL vulnerabilities from diff + RAG context
+#### AI/ML Components
+- **GROQ**: Ultra-fast LLM inference (Llama-3.3-70b)
+- **Mistral**: Specialized coding models (Devstral series)
+- **Semgrep**: Static analysis engine with language-specific rules
+- **Sentence Transformers**: Code embedding for similarity search
 
-**Input**:
-- Git diff (changed files)
-- Semgrep findings
-- RAG context (codebase knowledge)
+#### Frontend
+- **Next.js 14**: React framework with App Router
+- **TypeScript**: Type-safe frontend development
+- **Tailwind CSS**: Utility-first styling
+- **Shadcn/ui**: Component library
 
-**Output**:
-```python
-List[VulnerabilityFinding]:
-  - file: str
-  - line_start: int
-  - vuln_type: str
-  - severity: str (CRITICAL, HIGH, MEDIUM, LOW)
-  - description: str
-  - relevant_code: str
-  - confidence: str (HIGH, MEDIUM, LOW)
+### Data Flow Architecture
+
+```
+GitHub Push Event
+        │
+        ▼
+┌─────────────────┐
+│ Webhook Handler │ ──► Signature Verification
+└─────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│  Orchestrator   │ ──► Background Task Queue
+└─────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│ LangGraph       │ ──► State Management
+│ Pipeline        │     & Agent Coordination
+└─────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│ Agent Execution │ ──► AI Model Inference
+│ (7 Agents)      │     & Docker Sandbox
+└─────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│ GitHub PR       │ ──► Automated Fix
+│ Creation        │     Deployment
+└─────────────────┘
 ```
 
-**Key Features**:
-- JSON parsing with retry logic
-- Severity sorting
-- Pydantic models for type safety
+## Implementation Details
 
----
-
-### Agent 2: Exploiter
-**File**: `agents/exploiter.py`  
-**Model**: Codestral-2508  
-**Purpose**: Takes ONE vulnerability → writes exploit → proves it's real
-
-**Input**:
-- Single VulnerabilityFinding
-- Git diff
-- RAG context
-
-**Output**:
-```python
-{
-  "exploit_script": str,  # Python script
-  "vulnerability_type": str,
-  "reasoning": str
-}
+### File Structure
+```
+aegis/
+├── main.py                 # FastAPI application entry point
+├── orchestrator.py         # Pipeline coordination logic
+├── config.py              # Centralized configuration
+├── scheduler.py           # Autonomous scanning scheduler
+├── pipeline/
+│   ├── graph.py           # LangGraph pipeline definition
+│   ├── nodes.py           # Individual pipeline nodes
+│   ├── state.py           # Shared state structure
+│   └── safety_validator.py # Regression prevention
+├── agents/
+│   ├── finder.py          # Vulnerability detection agent
+│   ├── exploiter.py       # Exploit generation agent
+│   ├── engineer.py        # Patch generation agent
+│   ├── reviewer.py        # Code review agent
+│   ├── reviewer_agent.py  # Alternative reviewer
+│   ├── triage.py          # Pre-filtering agent
+│   └── schemas.py         # Data structures
+├── sandbox/
+│   └── docker_runner.py   # Isolated execution environment
+├── scanner/
+│   └── semgrep_runner.py  # Static analysis integration
+├── database/
+│   ├── models.py          # SQLAlchemy models
+│   └── db.py             # Database connection
+├── github_integration/
+│   ├── webhook.py         # GitHub webhook handling
+│   ├── pr_creator.py      # Pull request automation
+│   └── diff_fetcher.py    # Git diff processing
+├── rag/
+│   ├── indexer.py         # Code indexing for RAG
+│   └── retriever.py       # Context retrieval
+└── routes/
+    ├── repos.py           # Repository management API
+    ├── scans.py           # Scan status and results API
+    └── auth.py            # Authentication endpoints
 ```
 
-**Key Features**:
-- Focuses on single vulnerability
-- Generates runnable Python exploits
-- Tests actual code from /app in Docker
+### Database Schema
 
----
+#### Core Tables
+- **repos**: Repository metadata and indexing status
+- **scans**: Individual scan records with status tracking
+- **findings**: Vulnerability findings with severity and location
+- **patches**: Generated fixes with test results and verification
 
-### Agent 3: Engineer
-**File**: `agents/engineer.py`  
-**Model**: Devstral-2512  
-**Purpose**: Generates patch + unit tests
-
-**Input**:
-- Vulnerable code
-- Exploit output
-- Vulnerability type
-- Error logs (if retry)
-
-**Output**:
-```python
-{
-  "patched_code": str,
-  "test_code": str,  # pytest format
-  "file_path": str,
-  "is_retry": bool
-}
-```
-
-**Key Features**:
-- Generates both patch AND tests
-- Uses parameterized queries for SQL injection
-- Maintains function signatures
-- Fallback if JSON parsing fails
-
----
-
-### Agent 4: Verifier
-**File**: `agents/reviewer.py`  
-**Purpose**: Verifies fix + updates RAG
-
-**Input**:
-- Vulnerable code
-- Exploit script
-- Repo path
-- Repo name
-
-**Output**:
-```python
-{
-  "success": bool,
-  "patched_code": str,
-  "test_code": str,
-  "attempts": int
-}
-```
-
-**Key Features**:
-- Runs remediation loop (max 3 attempts)
-- Tests patch in Docker
-- Re-runs exploit on patched code
-- Updates RAG if successful
-- Non-fatal RAG update
-
----
-
-## Core Components
-
-### Orchestrator
-**File**: `orchestrator.py`
-
-**Responsibilities**:
-- Coordinates 4-agent pipeline
-- Real-time DB status updates
-- SSE broadcasts
-- Error handling
-
-**Status Flow**:
-```
-queued → scanning → exploiting → exploit_confirmed → 
-patching → verifying → fixed
-```
-
-**Alternative Endings**:
-- `clean` - No vulnerabilities found
-- `false_positive` - Exploit failed
-- `failed` - Pipeline error
-
----
-
-### Docker Sandbox
-**File**: `sandbox/docker_runner.py`  
-**Image**: `aegis-sandbox:latest`
-
-**Features**:
-- Isolated exploit execution
-- No network access
-- Non-root user
-- Mounted code at /app
-- Timeout protection
-
-**Functions**:
-- `run_exploit_in_sandbox()` - Test exploits
-- `run_tests_in_sandbox()` - Run pytest tests
-
----
-
-### RAG System
-
-#### Indexer
-**File**: `rag/indexer.py`  
-**Database**: ChromaDB
-
-**Features**:
-- AST-based code parsing
-- Function/class extraction
-- Semantic embeddings
-- Incremental updates
-
-#### Retriever
-**File**: `rag/retriever.py`
-
-**Features**:
-- Semantic code search
-- Context retrieval for agents
-- Relevance scoring
-
----
-
-### Semgrep Scanner
-**File**: `scanner/semgrep_runner.py`
-
-**Features**:
-- Docker fallback (Python 3.14 incompatibility)
-- Pattern-based vulnerability detection
-- Feeds into Finder agent
-
----
-
-### GitHub Integration
-
-#### Webhook Handler
-**File**: `main.py`
-
-**Features**:
-- Signature verification
-- Push event handling
-- Background pipeline execution
-
-#### PR Creator
-**File**: `github_integration/pr_creator.py`
-
-**Features**:
-- Creates PR with:
-  - Exploit proof
-  - Patch diff
-  - Test code
-  - Vulnerability description
-
----
-
-## Database Schema
-
-### Users Table
+#### Relationships
 ```sql
-CREATE TABLE users (
-  id INTEGER PRIMARY KEY,
-  github_id INTEGER UNIQUE,
-  github_username TEXT,
-  github_avatar_url TEXT,
-  github_token TEXT,
-  created_at TIMESTAMP
-);
+repos (1) ──── (many) scans
+scans (1) ──── (many) findings
+findings (1) ──── (1) patches
 ```
 
-### Repos Table
-```sql
-CREATE TABLE repos (
-  id INTEGER PRIMARY KEY,
-  user_id INTEGER,
-  full_name TEXT,
-  webhook_id INTEGER,
-  is_indexed BOOLEAN,
-  status TEXT,
-  created_at TIMESTAMP
-);
-```
+### Security Architecture
 
-### Scans Table
-```sql
-CREATE TABLE scans (
-  id INTEGER PRIMARY KEY,
-  repo_id INTEGER,
-  commit_sha TEXT,
-  branch TEXT,
-  status TEXT,
-  vulnerability_type TEXT,
-  severity TEXT,
-  vulnerable_file TEXT,
-  exploit_output TEXT,
-  patch_diff TEXT,
-  pr_url TEXT,
-  error_message TEXT,
-  created_at TIMESTAMP,
-  completed_at TIMESTAMP
-);
-```
+#### Multi-Layer Security Model
+1. **Network Isolation**: Docker containers with no internet access
+2. **Resource Limits**: Memory (256MB) and CPU (50%) constraints
+3. **User Isolation**: Non-root sandbox user in containers
+4. **Capability Dropping**: All Linux capabilities removed
+5. **Read-Only Mounts**: Repository code mounted read-only
+6. **Signature Verification**: All webhooks cryptographically verified
 
----
+#### Threat Model
+- **Malicious Code Execution**: Contained within Docker sandbox
+- **Resource Exhaustion**: Strict timeout and resource limits
+- **Data Exfiltration**: No network access from sandbox
+- **Privilege Escalation**: Capabilities dropped, no-new-privileges
+- **Fork Attacks**: PRs from forks automatically rejected
 
-## API Endpoints
+### Performance Characteristics
 
-### Authentication
-- `POST /api/auth/github` - OAuth callback
-- `GET /api/auth/user/{id}` - Get user info
+#### Measured Performance
+- **Semgrep Analysis**: ~3 seconds for typical repository
+- **LLM Inference**: 10-20x faster with GROQ vs Mistral
+- **Exploit Execution**: 30-second timeout per attempt
+- **Patch Generation**: 90-second timeout for complex fixes
+- **End-to-End**: 5-15 minutes for complete vulnerability remediation
 
-### Repositories
-- `POST /api/repos` - Add repository
-- `GET /api/repos` - List repositories
-- `GET /api/repos/{id}` - Get repository
-- `DELETE /api/repos/{id}` - Delete repository
+#### Scalability Limits
+- **Single Node**: Current architecture not distributed
+- **Memory Usage**: ~2GB for typical scan with RAG context
+- **Concurrent Scans**: Limited by Docker daemon capacity
+- **Repository Size**: Tested up to ~100k lines of code
 
-### Scans
-- `GET /api/scans` - List scans
-- `GET /api/scans/{id}` - Get scan
-- `GET /api/scans/live` - SSE stream
+### Integration Points
 
-### Webhook
-- `POST /webhook` - GitHub webhook
+#### External Services
+- **GitHub API**: Repository access, webhook delivery, PR creation
+- **GROQ API**: Fast LLM inference for analysis tasks
+- **Mistral API**: Specialized coding model for patch generation
+- **Docker Daemon**: Container orchestration for sandboxing
 
----
+#### Internal APIs
+- **REST Endpoints**: Repository management, scan status, results
+- **WebSocket/SSE**: Real-time scan progress updates
+- **Database**: Persistent storage of scans, findings, patches
+- **File System**: Local repository clones and temporary files
 
-## Frontend Architecture
-
-### Dashboard
-**File**: `aegis-frontend/app/dashboard/page.tsx`
-
-**Features**:
-- Real-time SSE connection
-- Repo cards with status
-- Scan feed with live updates
-- Add repo modal
-
-### Components
-
-#### VulnCard
-**File**: `aegis-frontend/components/VulnCard.tsx`
-
-**Features**:
-- Status badge (animated)
-- Severity badge
-- Collapsible sections:
-  - Exploit Output
-  - Patch Diff
-  - Error Details
-- PR button
-
-#### AddRepoModal
-**File**: `aegis-frontend/components/AddRepoModal.tsx`
-
-**Features**:
-- Progress indicator:
-  1. Validating
-  2. Installing webhook
-  3. Indexing codebase
-- Real-time polling
-- Auto-close on complete
-
----
-
-## Configuration
-
-### Environment Variables
-```bash
-# Backend (.env)
-MISTRAL_API_KEY=your_key
-GITHUB_TOKEN=your_token
-GITHUB_WEBHOOK_SECRET=your_secret
-DATABASE_URL=sqlite:///aegis.db
-
-# Frontend (.env.local)
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-### Models
-- **Finder**: codestral-2508
-- **Exploiter**: codestral-2508
-- **Engineer**: devstral-2512
-- **Verifier**: Uses Engineer + Docker
-
----
-
-## Deployment
-
-### Backend
-```bash
-cd Aegis
-source .venv/bin/activate
-./start-backend.sh
-```
-
-### Frontend
-```bash
-cd Aegis/aegis-frontend
-npm run dev
-```
-
-### Docker Sandbox
-```bash
-cd Aegis
-./build-sandbox.sh
-```
-
----
-
-## Security Features
-
-1. **Isolated Execution**: All exploits run in Docker sandbox
-2. **No Network Access**: Sandbox has no internet
-3. **Non-root User**: Exploits run as non-privileged user
-4. **Timeout Protection**: 30s timeout for exploits
-5. **Signature Verification**: GitHub webhook signatures verified
-6. **Token Encryption**: GitHub tokens encrypted in production
-
----
-
-## Performance
-
-- **RAG Indexing**: ~2-5 seconds per repo
-- **Semgrep Scan**: ~1-3 seconds
-- **Agent 1 (Finder)**: ~5-10 seconds
-- **Agent 2 (Exploiter)**: ~10-15 seconds per finding
-- **Agent 3 (Engineer)**: ~10-15 seconds
-- **Agent 4 (Verifier)**: ~5-10 seconds
-- **Total Pipeline**: ~30-60 seconds per vulnerability
-
----
-
-## Error Handling
-
-1. **Retry Logic**: Engineer retries up to 3 times
-2. **Non-fatal Failures**: RAG update failures don't break pipeline
-3. **Graceful Degradation**: Falls back to Semgrep if agents fail
-4. **Status Tracking**: All failures logged in database
-5. **SSE Broadcasts**: Frontend notified of all status changes
-
----
-
-## Testing
-
-### Component Tests
-- `test-aegis-components.py` - All 6 components
-- Individual agent tests
-
-### Integration Tests
-- 4-agent pipeline test
-- SSE endpoint test
-- Database status updates
-
-### End-to-End Tests
-- Real GitHub push
-- PR creation
-- Frontend live updates
-
----
-
-## Monitoring
-
-### Logs
-- `logs/aegis.log` - Application logs
-- Agent execution logs
-- Pipeline status logs
-
-### Database
-- Scan status tracking
-- Error messages
-- Performance metrics
-
-### SSE Stream
-- Real-time status updates
-- Frontend monitoring
-
----
-
-**Architecture Status**: ✅ Production Ready  
-**Last Tested**: April 23, 2026  
-**Version**: 1.0.0
+This architecture represents a production-ready implementation of autonomous vulnerability remediation with strong security guarantees and performance optimization.
