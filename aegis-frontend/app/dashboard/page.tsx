@@ -12,10 +12,6 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { NotificationPermissionBanner, NotificationToggle, notifyScanComplete } from "@/components/NotificationManager";
 
 // ── Helpers ───────────────────────────────────────────────
-function mono(text: string, style?: React.CSSProperties) {
-  return <span style={{ fontFamily: "var(--font-share-tech-mono, monospace)", ...style }}>{text}</span>;
-}
-
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
     queued:            { label: "Queued",          color: "var(--muted)",          bg: "rgba(255,255,255,0.04)" },
@@ -191,8 +187,8 @@ export default function DashboardPage() {
     if (!userId) return;
     try {
       const [repoData, scanData, statsData] = await Promise.all([api.listRepos(userId), api.listScans(), api.getStats(userId).catch(() => null)]);
-      setRepos(repoData.data ?? repoData);
-      setScans(scanData.data ?? scanData);
+      setRepos(repoData.data || []);
+      setScans(scanData.data || []);
       if (statsData) setStats(statsData);
     } catch (err) { console.error(err); }
   }, [userId]);

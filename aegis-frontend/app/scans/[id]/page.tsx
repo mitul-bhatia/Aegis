@@ -198,7 +198,7 @@ export default function ScanDetailPage() {
         ))}
       </div>
 
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "28px", display: "grid", gridTemplateColumns: "300px 1fr", gap: 1, background: "var(--border)", border: "1px solid var(--border)", margin: "24px auto", maxWidth: 1280 }}>
+      <main style={{ maxWidth: 1280, margin: "24px auto", padding: "28px", display: "grid", gridTemplateColumns: "300px 1fr", gap: 1, background: "var(--border)", border: "1px solid var(--border)" }}>
         {/* ── Left: Pipeline ── */}
         <div style={{ background: "var(--surface)", padding: 24 }}>
           <M style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: 20 }}>// Agent Pipeline</M>

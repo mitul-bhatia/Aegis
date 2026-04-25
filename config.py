@@ -34,7 +34,7 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 # ── Model Settings ────────────────────────────────────────
 # Agent A (Finder/Hacker): Groq — ultra-fast inference for analysis & exploit gen
 HACKER_MODEL  = os.getenv("HACKER_MODEL",  "llama-3.3-70b-versatile")
-HACKER_PROVIDER = "groq"   # groq | mistral
+HACKER_PROVIDER = "groq"   # groq | mistral (GROQ is 10x faster!)
 
 # Agent B (Engineer): Devstral — frontier agentic coding model for quality patches
 ENGINEER_MODEL       = os.getenv("ENGINEER_MODEL",       "devstral-small-2505")

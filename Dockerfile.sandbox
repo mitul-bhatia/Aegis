@@ -10,7 +10,11 @@ RUN apt-get update && apt-get install -y \
 # Note: sqlite3 is built into Python, no need to install
 RUN pip install --no-cache-dir \
     requests \
-    pytest
+    pytest \
+    flask \
+    django \
+    fastapi \
+    sqlalchemy
 
 # Create non-root user for running exploits
 RUN useradd -m -u 1000 sandbox && \
