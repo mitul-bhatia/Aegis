@@ -1,11 +1,18 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// Helper to add ngrok headers
+const getHeaders = (additionalHeaders: Record<string, string> = {}) => ({
+  "Content-Type": "application/json",
+  "ngrok-skip-browser-warning": "true",
+  ...additionalHeaders
+});
+
 export const api = {
   // ── Auth ──────────────────────────────────────────────
   async exchangeGitHubCode(code: string) {
     const res = await fetch(`${API_BASE}/api/auth/github`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getHeaders(),
       body: JSON.stringify({ code }),
     });
     if (!res.ok) throw new Error("OAuth failed");
@@ -13,7 +20,9 @@ export const api = {
   },
 
   async getUser(userId: number) {
-    const res = await fetch(`${API_BASE}/api/auth/user/${userId}`);
+    const res = await fetch(`${API_BASE}/api/auth/user/${userId}`, {
+      headers: getHeaders()
+    });
     if (!res.ok) throw new Error("User not found");
     return res.json();
   },
