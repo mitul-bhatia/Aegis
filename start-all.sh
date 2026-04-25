@@ -4,7 +4,7 @@ echo "🛡️ Starting Aegis Services..."
 
 # Start Backend
 echo "📡 Starting Backend Server..."
-cd /Users/jivitrana/Desktop/Aegis
+cd "$(dirname "$0")"
 source .venv/bin/activate
 python main.py &
 BACKEND_PID=$!
@@ -14,7 +14,7 @@ sleep 3
 
 # Start Frontend
 echo "🌐 Starting Frontend Server..."
-cd /Users/jivitrana/Desktop/Aegis/aegis-frontend
+cd "$(dirname "$0")/aegis-frontend"
 npm run dev &
 FRONTEND_PID=$!
 

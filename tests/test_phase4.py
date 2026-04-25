@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import config
 config.setup_logging()
 
-from agents.hacker import run_hacker_agent
+from agents.exploiter import run_exploiter_agent
 
 diff = {
     "changed_files": [{
@@ -32,11 +32,15 @@ semgrep_findings = [{
 
 rag_context = "=== RELATED CODEBASE CONTEXT ===\nThis function is called by POST /login endpoint."
 
-print("Running Agent A (The Hacker)...")
-print("Note: this requires a valid MISTRAL_API_KEY in your .env file")
+print("Running Agent 2 (The Exploiter)...")
+print("Note: this requires a valid GROQ_API_KEY in your .env file")
 
-result = run_hacker_agent(diff, semgrep_findings, rag_context)
+if not config.GROQ_API_KEY:
+    print("Skipping test: GROQ_API_KEY is not set in .env")
+else:
+    result = run_exploiter_agent(semgrep_findings[0], diff, rag_context)
 
-print("\n=== GENERATED EXPLOIT SCRIPT ===")
-print(result["exploit_script"])
-print(f"\nVulnerability type: {result['vulnerability_type']}")
+    print("\n=== GENERATED EXPLOIT SCRIPT ===")
+    print(result["exploit_script"])
+    print(f"\nVulnerability type: {result['vulnerability_type']}")
+

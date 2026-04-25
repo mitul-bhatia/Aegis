@@ -28,17 +28,20 @@ Leaked 2 rows of user data: [(1, 'admin', 'secret'), (2, 'alice', 'pass')]
 print("Running Agent B (The Engineer)...")
 print("Note: this requires a valid MISTRAL_API_KEY in your .env file")
 
-result = run_engineer_agent(
-    vulnerable_code=vulnerable_code,
-    file_path="app.py",
-    exploit_output=exploit_output,
-    vulnerability_type="SQL Injection"
-)
-
-print("\n=== PATCHED CODE ===")
-print(result["patched_code"])
-
-if "?" in result["patched_code"] or "%s" in result["patched_code"]:
-    print("\n✅ Patch correctly uses parameterized queries!")
+if not config.MISTRAL_API_KEY:
+    print("Skipping test: MISTRAL_API_KEY is not set in .env")
 else:
-    print("\n⚠️  Warning: Patch might not be using parameterized queries")
+    result = run_engineer_agent(
+        vulnerable_code=vulnerable_code,
+        file_path="app.py",
+        exploit_output=exploit_output,
+        vulnerability_type="SQL Injection"
+    )
+
+    print("\n=== PATCHED CODE ===")
+    print(result["patched_code"])
+
+    if "?" in result["patched_code"] or "%s" in result["patched_code"]:
+        print("\n✅ Patch correctly uses parameterized queries!")
+    else:
+        print("\n⚠️  Warning: Patch might not be using parameterized queries")

@@ -35,7 +35,7 @@ export function AddRepoModal({
 
   useEffect(() => {
     if (forceOpen) {
-      setOpen(true);
+      setTimeout(() => setOpen(true), 0);
       onForceOpenHandled?.();
     }
   }, [forceOpen, onForceOpenHandled]);
@@ -111,7 +111,7 @@ export function AddRepoModal({
       setError("");
       setRepoId(null);
     } else {
-      setOpen(true);
+      setTimeout(() => setOpen(true), 0);
     }
   }
 
