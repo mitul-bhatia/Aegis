@@ -13,7 +13,6 @@ from routes.auth import router as auth_router
 from routes.repos import router as repos_router
 from routes.scans import router as scans_router
 from routes.scheduler import router as scheduler_router
-from routes.intelligence import router as intelligence_router
 from scheduler import start_autonomous_scheduler, stop_autonomous_scheduler
 
 # Initialize configuration
@@ -36,7 +35,6 @@ app.include_router(auth_router)
 app.include_router(repos_router)
 app.include_router(scans_router)
 app.include_router(scheduler_router)
-app.include_router(intelligence_router)
 
 # Create database tables on startup
 @app.on_event("startup")
