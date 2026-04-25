@@ -1,294 +1,82 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  GitBranch,
-  ExternalLink,
-  ChevronDown,
-  ChevronUp,
-  AlertTriangle,
-  CheckCircle2,
-  Code,
-  FileCode,
-  Loader2,
-  XCircle,
-  Activity,
-  Search,
-  Shield,
-} from "lucide-react";
-import type { ScanInfo } from "@/lib/api";
+import { ScanInfo, TERMINAL_STATUSES } from "@/lib/api";
+import { AgentAvatar } from "./AgentAvatar";
+import { LiveTimer } from "./LiveTimer";
+import Link from "next/link";
 
-// ── Status Badge Component ───────────────────────────────
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<
-    string,
-    {
-      label: string;
-      variant: "default" | "secondary" | "destructive" | "outline";
-      icon: React.ElementType;
-      className?: string;
-    }
-  > = {
-    queued: {
-      label: "Queued",
-      variant: "secondary",
-      icon: Loader2,
-      className: "animate-pulse",
-    },
-    scanning: {
-      label: "Scanning",
-      variant: "outline",
-      icon: Search,
-      className: "animate-pulse",
-    },
-    exploiting: {
-      label: "Exploiting",
-      variant: "outline",
-      icon: Activity,
-      className: "animate-pulse",
-    },
-    exploit_confirmed: {
-      label: "Exploit Found",
-      variant: "destructive",
-      icon: AlertTriangle,
-    },
-    patching: {
-      label: "Patching",
-      variant: "outline",
-      icon: Code,
-      className: "animate-pulse",
-    },
-    verifying: {
-      label: "Verifying",
-      variant: "outline",
-      icon: Shield,
-      className: "animate-pulse",
-    },
-    fixed: {
-      label: "Fixed",
-      variant: "default",
-      icon: CheckCircle2,
-      className: "bg-green-500/10 text-green-600 border-green-500/20",
-    },
-    false_positive: {
-      label: "False Positive",
-      variant: "secondary",
-      icon: XCircle,
-    },
-    clean: {
-      label: "Clean",
-      variant: "default",
-      icon: CheckCircle2,
-      className: "bg-green-500/10 text-green-600 border-green-500/20",
-    },
-    failed: {
-      label: "Failed",
-      variant: "destructive",
-      icon: XCircle,
-    },
-  };
-
-  const c = config[status] || {
-    label: status,
-    variant: "secondary" as const,
-    icon: Activity,
-  };
-  const Icon = c.icon;
-
-  return (
-    <Badge variant={c.variant} className={`gap-1.5 ${c.className || ""}`}>
-      <Icon
-        className={`h-3 w-3 ${
-          status === "scanning" ||
-          status === "queued" ||
-          status === "exploiting" ||
-          status === "patching" ||
-          status === "verifying"
-            ? "animate-spin"
-            : ""
-        }`}
-      />
-      {c.label}
-    </Badge>
-  );
+interface Props {
+  scan: ScanInfo;
 }
 
-// ── Severity Badge ───────────────────────────────────────
-function SeverityBadge({ severity }: { severity: string | null }) {
-  if (!severity) return null;
+export function VulnCard({ scan }: Props) {
+  const isTerminal = TERMINAL_STATUSES.includes(scan.status);
 
-  const config: Record<
-    string,
-    { variant: "default" | "secondary" | "destructive" | "outline" }
-  > = {
-    CRITICAL: { variant: "destructive" },
-    HIGH: { variant: "destructive" },
-    ERROR: { variant: "destructive" },
-    MEDIUM: { variant: "outline" },
-    WARNING: { variant: "outline" },
-    LOW: { variant: "secondary" },
-  };
+  // Base styling depending on terminal state
+  const isFixed = scan.status === "fixed";
+  const isFailed = scan.status === "failed";
+  const isClean = scan.status === "clean" || scan.status === "false_positive";
 
-  const c = config[severity.toUpperCase()] || { variant: "secondary" as const };
+  let borderColor = "border-slate-800";
+  if (isFixed) borderColor = "border-emerald-900/50";
+  if (isFailed) borderColor = "border-red-900/50";
+  if (isClean) borderColor = "border-slate-800"; // neutral
 
-  return (
-    <Badge variant={c.variant} className="text-xs">
-      {severity}
-    </Badge>
-  );
-}
-
-// ── Collapsible Section ──────────────────────────────────
-function CollapsibleSection({
-  title,
-  icon: Icon,
-  children,
-  defaultOpen = false,
-}: {
-  title: string;
-  icon: React.ElementType;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  // Active scan styling overrides
+  if (!isTerminal) {
+    if (scan.current_agent === "finder") borderColor = "border-violet-500/50 shadow-[0_0_15px_rgba(124,58,237,0.15)]";
+    if (scan.current_agent === "exploiter") borderColor = "border-red-500/50 shadow-[0_0_15px_rgba(220,38,38,0.15)]";
+    if (scan.current_agent === "engineer") borderColor = "border-amber-500/50 shadow-[0_0_15px_rgba(217,119,6,0.15)]";
+    if (scan.current_agent === "verifier") borderColor = "border-emerald-500/50 shadow-[0_0_15px_rgba(5,150,105,0.15)]";
+  }
 
   return (
-    <div className="border-t border-border/50 pt-3">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between text-sm font-medium hover:text-primary transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-muted-foreground" />
-          {title}
-        </div>
-        {isOpen ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
-      {isOpen && <div className="mt-3">{children}</div>}
-    </div>
-  );
-}
-
-// ── Main VulnCard Component ──────────────────────────────
-export function VulnCard({ scan }: { scan: ScanInfo }) {
-  const router = useRouter();
-
-  return (
-    <Card className="aegis-card-hover border-border/50">
-      <CardContent className="p-4 space-y-3">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1">
-            {/* Commit info */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <GitBranch className="h-4 w-4 text-muted-foreground" />
-              <code className="text-xs text-muted-foreground">
-                {scan.commit_sha.slice(0, 8)}
-              </code>
-              <span className="text-xs text-muted-foreground">on</span>
-              <code className="text-xs text-primary">{scan.branch}</code>
-              <span className="text-xs text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground">
-                {new Date(scan.created_at).toLocaleString()}
+    <div className={`bg-slate-900/40 rounded-xl p-5 border transition-all ${borderColor} ${!isTerminal ? "aegis-active-scan" : "hover:bg-slate-800/50"}`}>
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <Link href={`/scans/${scan.id}`} className="text-lg font-bold font-mono text-slate-200 hover:text-white transition-colors">
+            {scan.vulnerability_type || "Scanning..."}
+          </Link>
+          <div className="flex gap-2 items-center mt-1">
+            <span className="text-xs font-mono text-slate-500">#{scan.commit_sha.substring(0, 7)}</span>
+            {scan.severity && (
+              <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded
+                ${scan.severity === "ERROR" ? "bg-red-950 text-red-400" : "bg-amber-950 text-amber-400"}`}>
+                {scan.severity}
               </span>
-            </div>
-
-            {/* Vulnerability info */}
-            {scan.vulnerability_type && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-                <span className="text-sm font-semibold">
-                  {scan.vulnerability_type}
-                </span>
-                {scan.severity && <SeverityBadge severity={scan.severity} />}
-                {scan.vulnerable_file && (
-                  <span className="text-xs text-muted-foreground">
-                    in <code className="text-primary">{scan.vulnerable_file}</code>
-                  </span>
-                )}
-              </div>
             )}
-          </div>
-
-          {/* Status badge */}
-          <div className="flex flex-col items-end gap-2">
-            <StatusBadge status={scan.status} />
-            {scan.pr_url && (
-              <a
-                href={scan.pr_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 h-7 text-xs"
-                >
-                  View PR <ExternalLink className="h-3 w-3" />
-                </Button>
-              </a>
-            )}
+            <span className="text-xs font-mono text-slate-500">{scan.vulnerable_file}</span>
           </div>
         </div>
 
-        {/* Collapsible sections */}
-        {scan.exploit_output && (
-          <CollapsibleSection
-            title="Exploit Output"
-            icon={AlertTriangle}
-            defaultOpen={false}
-          >
-            <pre className="max-h-48 overflow-auto rounded-lg bg-secondary/50 p-3 text-xs text-muted-foreground font-mono border border-border/50">
-              {scan.exploit_output}
-            </pre>
-          </CollapsibleSection>
-        )}
-
-        {scan.patch_diff && (
-          <CollapsibleSection
-            title="Patch Diff"
-            icon={FileCode}
-            defaultOpen={false}
-          >
-            <pre className="max-h-48 overflow-auto rounded-lg bg-secondary/50 p-3 text-xs text-muted-foreground font-mono border border-border/50">
-              {scan.patch_diff}
-            </pre>
-          </CollapsibleSection>
-        )}
-
-        {scan.error_message && (
-          <CollapsibleSection
-            title="Error Details"
-            icon={XCircle}
-            defaultOpen={true}
-          >
-            <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive border border-destructive/20">
-              {scan.error_message}
+        <div className="flex flex-col items-end gap-2">
+          {!isTerminal ? (
+            <div className="flex items-center gap-3">
+              <AgentAvatar agent={scan.current_agent || null} size="sm" pulse={true} />
+              <LiveTimer startedAt={scan.created_at} />
             </div>
-          </CollapsibleSection>
-        )}
-
-        {/* View details button */}
-        <div className="pt-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs"
-            onClick={() => router.push(`/scans/${scan.id}`)}
-          >
-            View Full Details
-          </Button>
+          ) : (
+            <div className="flex flex-col items-end">
+              <span className={`text-xs font-bold uppercase tracking-wider
+                ${isFixed ? "text-emerald-500" : isFailed ? "text-red-500" : "text-slate-500"}`}>
+                {scan.status.replace("_", " ")}
+              </span>
+              {isFixed && scan.pr_url && (
+                <a href={scan.pr_url} target="_blank" rel="noopener noreferrer"
+                   className="mt-2 text-xs bg-emerald-950/50 text-emerald-400 hover:text-emerald-300 border border-emerald-900/50 px-2 py-1 rounded transition-colors">
+                  View PR ↗
+                </a>
+              )}
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {!isTerminal && scan.agent_message && (
+        <div className="mt-3 text-xs font-mono text-slate-400 bg-black/20 p-2 rounded border border-white/5 truncate">
+          <span className="opacity-50 mr-2">&gt;</span>{scan.agent_message}
+        </div>
+      )}
+    </div>
   );
 }

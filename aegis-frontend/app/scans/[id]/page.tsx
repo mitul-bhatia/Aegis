@@ -1,444 +1,160 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import {
-  api,
-  type ScanInfo,
-  type ScanStatus,
-  isActiveScan,
-  parseFindingsJson,
-} from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { useParams, useRouter } from "next/navigation";
+import { api, ScanInfo, TERMINAL_STATUSES } from "@/lib/api";
 import { PipelineTimeline } from "@/components/PipelineTimeline";
-import { AgentAvatar } from "@/components/AgentAvatar";
-import { LiveTimer } from "@/components/LiveTimer";
-import ExploitTerminal from "@/components/ExploitTerminal";
-import CodeDiff from "@/components/CodeDiff";
-import { FindingsPanel } from "@/components/FindingsPanel";
-import {
-  Shield,
-  ArrowLeft,
-  ExternalLink,
-  GitCommit,
-  GitBranch,
-  FileCode2,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import { ExploitTerminal } from "@/components/ExploitTerminal";
+import { CodeDiff } from "@/components/CodeDiff";
 
-// ── Severity badge ────────────────────────────────────────
-function SeverityBadge({ severity }: { severity: string | null }) {
-  if (!severity) return null;
-  const s = severity.toUpperCase();
-  const cls =
-    s === "ERROR" || s === "CRITICAL" || s === "HIGH"
-      ? "bg-red-500/15 text-red-400 border-red-500/30"
-      : s === "WARNING" || s === "MEDIUM"
-      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-      : "bg-blue-500/15 text-blue-400 border-blue-500/30";
-  return (
-    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${cls}`}>
-      {s}
-    </span>
-  );
-}
-
-// ── Status badge ──────────────────────────────────────────
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    queued:            { label: "Queued",        cls: "bg-white/5 text-muted-foreground border-white/10" },
-    scanning:          { label: "Scanning",      cls: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
-    exploiting:        { label: "Exploiting",    cls: "bg-red-500/15 text-red-400 border-red-500/30 status-pulse" },
-    exploit_confirmed: { label: "Exploit Found", cls: "bg-red-500/20 text-red-300 border-red-500/50 font-bold" },
-    patching:          { label: "Patching",      cls: "bg-amber-500/15 text-amber-400 border-amber-500/30 status-pulse" },
-    verifying:         { label: "Verifying",     cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 status-pulse" },
-    fixed:             { label: "Fixed",         cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-    false_positive:    { label: "False Positive",cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-    clean:             { label: "Clean",         cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
-    failed:            { label: "Failed",        cls: "bg-red-500/15 text-red-400 border-red-500/30" },
-  };
-  const c = map[status] ?? { label: status, cls: "bg-white/5 text-muted-foreground border-white/10" };
-  return (
-    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${c.cls}`}>
-      {c.label}
-    </span>
-  );
-}
-
-// ── Agent Working Panel ───────────────────────────────────
-function AgentWorkingPanel({ scan }: { scan: ScanInfo }) {
-  const agent = scan.current_agent as "finder" | "exploiter" | "engineer" | "verifier" | null;
-  if (!agent) return null;
-  return (
-    <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
-      <AgentAvatar agent={agent} size="lg" showRing={true} showLabel={true} />
-      <div className="space-y-1.5">
-        <p className="text-sm font-medium text-foreground">
-          {scan.agent_message ?? `The ${agent} is working...`}
-        </p>
-        <div className="flex items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          <LiveTimer startTime={scan.created_at} isActive={true} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Exploit Confirmed — dramatic moment ───────────────────
-function ExploitConfirmedBanner({ scan }: { scan: ScanInfo }) {
-  return (
-    <div className="rounded-xl border border-red-500/40 bg-red-500/8 p-5 aegis-glow-red">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="h-10 w-10 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center">
-          <Zap className="h-5 w-5 text-red-400" />
-        </div>
-        <div>
-          <p className="font-bold text-red-400">Exploit Confirmed</p>
-          <p className="text-xs text-muted-foreground">
-            {scan.vulnerability_type} proven exploitable in Docker sandbox
-          </p>
-        </div>
-      </div>
-      {scan.exploit_output && (
-        <ExploitTerminal
-          output={scan.exploit_output}
-          exploitScript={scan.exploit_script}
-          status="vulnerable"
-          title="Live Exploit — Docker Sandbox"
-        />
-      )}
-    </div>
-  );
-}
-
-// ── Right panel (context-aware by status) ────────────────
-function ActivePanel({ scan }: { scan: ScanInfo }) {
-  const status = scan.status;
-
-  // Exploit just confirmed — dramatic moment
-  if (status === "exploit_confirmed") {
-    return <ExploitConfirmedBanner scan={scan} />;
-  }
-
-  // Still scanning/exploiting with no output yet
-  if (isActiveScan(status as ScanStatus) && !scan.exploit_output && !scan.patch_diff) {
-    return <AgentWorkingPanel scan={scan} />;
-  }
-
-  // Patching — show terminal + agent working
-  if (status === "patching") {
-    return (
-      <div className="space-y-4">
-        {scan.exploit_output && (
-          <ExploitTerminal
-            output={scan.exploit_output}
-            exploitScript={scan.exploit_script}
-            status="vulnerable"
-          />
-        )}
-        <AgentWorkingPanel scan={scan} />
-      </div>
-    );
-  }
-
-  // Verifying — show terminal + diff if available
-  if (status === "verifying") {
-    return (
-      <div className="space-y-4">
-        {scan.exploit_output && (
-          <ExploitTerminal
-            output={scan.exploit_output}
-            exploitScript={scan.exploit_script}
-            status="vulnerable"
-          />
-        )}
-        {scan.original_code && scan.patch_diff ? (
-          <CodeDiff
-            before={scan.original_code}
-            after={scan.patch_diff}
-            filename={scan.vulnerable_file ?? "patch"}
-            language="python"
-          />
-        ) : (
-          <AgentWorkingPanel scan={scan} />
-        )}
-      </div>
-    );
-  }
-
-  // Fallback for other active states
-  return <AgentWorkingPanel scan={scan} />;
-}
-
-// ── PR Result Card ────────────────────────────────────────
-function PRResultCard({ scan }: { scan: ScanInfo }) {
-  if (!scan.pr_url) return null;
-  return (
-    <div className="aegis-gradient-border rounded-xl p-px">
-      <div className="rounded-xl bg-card p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15">
-              <Sparkles className="h-5 w-5 text-emerald-400" />
-            </div>
-            <div>
-              <p className="font-semibold text-emerald-400">Vulnerability Fixed!</p>
-              <p className="text-sm text-muted-foreground">
-                {scan.vulnerability_type} in{" "}
-                <code className="text-primary">{scan.vulnerable_file}</code> has been patched.
-              </p>
-            </div>
-          </div>
-          <a href={scan.pr_url} target="_blank" rel="noopener noreferrer">
-            <Button className="shrink-0 gap-2 bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold aegis-glow-emerald">
-              <ExternalLink className="h-4 w-4" />
-              Review PR on GitHub
-            </Button>
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Terminal result cards ─────────────────────────────────
-function ResultCard({ scan }: { scan: ScanInfo }) {
-  if (scan.status === "clean") {
-    return (
-      <div className="flex items-center gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-        <CheckCircle2 className="h-8 w-8 text-emerald-400 shrink-0" />
-        <div>
-          <p className="font-semibold text-emerald-400">Code is clean!</p>
-          <p className="text-sm text-muted-foreground">No vulnerabilities found in this commit.</p>
-        </div>
-      </div>
-    );
-  }
-  if (scan.status === "false_positive") {
-    return (
-      <div className="flex items-center gap-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
-        <AlertTriangle className="h-8 w-8 text-amber-400 shrink-0" />
-        <div>
-          <p className="font-semibold text-amber-400">False Positive</p>
-          <p className="text-sm text-muted-foreground">
-            The Finder flagged a potential issue, but the Exploiter could not confirm it was
-            exploitable in the Docker sandbox.
-          </p>
-        </div>
-      </div>
-    );
-  }
-  if (scan.status === "failed") {
-    return (
-      <div className="flex items-center gap-4 rounded-xl border border-red-500/20 bg-red-500/5 p-5">
-        <XCircle className="h-8 w-8 text-red-400 shrink-0" />
-        <div>
-          <p className="font-semibold text-red-400">Pipeline Failed</p>
-          <p className="text-sm text-muted-foreground">
-            {scan.error_message ?? "An error occurred during the scan. Human review required."}
-          </p>
-        </div>
-      </div>
-    );
-  }
-  return null;
-}
-
-// ── Main Page ─────────────────────────────────────────────
 export default function ScanDetailPage() {
   const params = useParams();
-  const scanId = Number(params.id);
+  const router = useRouter();
+  const scanId = parseInt(params.id as string);
+
   const [scan, setScan] = useState<ScanInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isNaN(scanId)) return;
+
+    let isSubscribed = true;
+    let sse: { close: () => void } | null = null;
+
     // Initial fetch
     api.getScan(scanId)
-      .then(setScan)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then(data => {
+        if (!isSubscribed) return;
+        setScan(data);
+        setLoading(false);
 
-    // Use SSE for live updates — merge to preserve fields not in SSE payload
-    const es = api.connectLiveFeed((data) => {
-      if (data.id === scanId) {
-        setScan(prev => prev ? { ...prev, ...data } : data);
-        // When scan reaches terminal state, do a full REST fetch to get all fields
-        // (exploit_script, original_code, patch_diff, findings_json not in SSE)
-        if (["fixed", "failed", "false_positive", "clean"].includes(data.status)) {
-          api.getScan(scanId).then(setScan).catch(() => {});
+        // If not terminal, connect to SSE
+        if (!TERMINAL_STATUSES.includes(data.status)) {
+          sse = api.connectLiveFeed((update) => {
+            if (update.id === scanId) {
+              setScan(prev => prev ? { ...prev, ...update } : update);
+              if (TERMINAL_STATUSES.includes(update.status) && sse) {
+                sse.close();
+              }
+            }
+          });
         }
-      }
-    });
+      })
+      .catch(err => {
+        if (!isSubscribed) return;
+        console.error(err);
+        setError("Failed to load scan");
+        setLoading(false);
+      });
 
-    return () => es.close();
+    return () => {
+      isSubscribed = false;
+      if (sse) sse.close();
+    };
   }, [scanId]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Shield className="h-12 w-12 text-primary status-pulse" />
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!scan) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center space-y-3">
-          <XCircle className="mx-auto h-10 w-10 text-destructive" />
-          <p className="text-muted-foreground">Scan not found</p>
-          <Link href="/dashboard">
-            <Button variant="outline" size="sm">Back to Dashboard</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const active = isActiveScan(scan.status as ScanStatus);
-  const showResultCard = ["clean", "false_positive", "failed"].includes(scan.status);
-  const findings = parseFindingsJson(scan.findings_json);
+  if (loading) return <div className="p-8 text-slate-400 font-mono">Loading...</div>;
+  if (error || !scan) return <div className="p-8 text-red-400 font-mono">{error || "Not found"}</div>;
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                <ArrowLeft className="h-4 w-4" />
-                Dashboard
-              </Button>
-            </Link>
-            <div className="h-4 w-px bg-border" />
-            <Shield className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-sm">Scan #{scan.id}</span>
-            {scan.vulnerability_type && (
-              <>
-                <div className="h-4 w-px bg-border" />
-                <span className="text-sm text-muted-foreground">{scan.vulnerability_type}</span>
-                <SeverityBadge severity={scan.severity} />
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            {active && <LiveTimer startTime={scan.created_at} isActive={true} />}
-            <StatusBadge status={scan.status} />
-            {scan.pr_url && (
-              <a href={scan.pr_url} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" variant="outline" className="gap-1.5 text-emerald-400 border-emerald-500/30">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  View PR
-                </Button>
-              </a>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#050810] text-slate-200">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <button onClick={() => router.back()} className="text-slate-500 hover:text-slate-300 font-mono text-sm mb-6 flex items-center gap-2">
+          <span>←</span> Back
+        </button>
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        {/* Meta row */}
-        <div className="mb-6 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <GitCommit className="h-3.5 w-3.5" />
-            <code className="font-mono">{scan.commit_sha.slice(0, 8)}</code>
+        <div className="flex items-center gap-4 mb-8">
+          <h1 className="text-3xl font-bold font-mono tracking-tight text-white">
+            Scan #{scan.id}
+          </h1>
+          <span className="text-slate-500 font-mono bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+            {scan.commit_sha.substring(0, 7)}
           </span>
-          <span className="flex items-center gap-1.5">
-            <GitBranch className="h-3.5 w-3.5" />
-            <code className="font-mono text-primary">{scan.branch}</code>
-          </span>
-          {scan.vulnerable_file && (
-            <span className="flex items-center gap-1.5">
-              <FileCode2 className="h-3.5 w-3.5" />
-              <code className="font-mono text-primary">{scan.vulnerable_file}</code>
-            </span>
-          )}
-          <span>{new Date(scan.created_at).toLocaleString()}</span>
         </div>
 
-        {/* Two-panel layout */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
-
-          {/* Left: Pipeline + findings */}
-          <div className="space-y-4">
-            <div className="rounded-xl border border-border/50 bg-card/60 p-5 backdrop-blur-sm">
-              <h2 className="mb-5 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Agent Pipeline
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Panel: Pipeline Timeline (35%) */}
+          <div className="lg:col-span-1">
+            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 aegis-glass">
+              <h2 className="text-sm font-mono font-bold text-slate-400 mb-6 uppercase tracking-wider">
+                Swarm Pipeline
               </h2>
-              <PipelineTimeline scan={scan} />
-            </div>
-
-            {/* All findings from Finder */}
-            {findings.length > 0 && (
-              <FindingsPanel
-                findings={findings}
-                confirmedVulnType={scan.vulnerability_type}
+              <PipelineTimeline
+                currentAgent={scan.current_agent || null}
+                status={scan.status}
+                agentMessage={scan.agent_message || null}
+                createdAt={scan.created_at}
               />
-            )}
-
-            {showResultCard && <ResultCard scan={scan} />}
+            </div>
           </div>
 
-          {/* Right: Active content */}
-          <div className="space-y-4">
-            {/* Active states */}
-            {!showResultCard && scan.status !== "fixed" && (
-              <ActivePanel scan={scan} />
+          {/* Right Panel: Content (65%) */}
+          <div className="lg:col-span-2 space-y-6">
+            {scan.status === "failed" && (
+              <div className="bg-red-950/20 border border-red-900/50 rounded-xl p-6">
+                <h3 className="text-red-400 font-mono font-bold mb-2">Pipeline Failed</h3>
+                <p className="text-slate-300 text-sm">{scan.error_message}</p>
+              </div>
             )}
 
-            {/* Fixed: full story — terminal + diff + PR */}
-            {scan.status === "fixed" && (
-              <>
-                {scan.exploit_output && (
-                  <ExploitTerminal
-                    output={scan.exploit_output}
-                    exploitScript={scan.exploit_script}
-                    status="vulnerable"
-                    title="Exploit Proof — Docker Sandbox"
-                  />
-                )}
-                {scan.original_code && scan.patch_diff && (
-                  <CodeDiff
-                    before={scan.original_code}
-                    after={scan.patch_diff}
-                    filename={scan.vulnerable_file ?? "patch"}
-                    language="python"
-                  />
-                )}
-                <PRResultCard scan={scan} />
-              </>
+            {scan.status === "clean" || scan.status === "false_positive" ? (
+              <div className="bg-emerald-950/20 border border-emerald-900/50 rounded-xl p-6 flex flex-col items-center justify-center text-center py-12">
+                <div className="text-4xl mb-4">🛡️</div>
+                <h3 className="text-emerald-400 font-mono font-bold text-lg mb-2">Code is Secure</h3>
+                <p className="text-slate-400 text-sm max-w-md">
+                  {scan.status === "clean"
+                    ? "No vulnerabilities were detected in this commit."
+                    : "Potential issues were found, but our Exploiter agent verified they are not actually exploitable (False Positives)."}
+                </p>
+              </div>
+            ) : null}
+
+            {scan.status === "fixed" && scan.pr_url && (
+              <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-6 flex items-center justify-between">
+                <div>
+                  <h3 className="text-emerald-400 font-mono font-bold mb-1">Vulnerability Patched</h3>
+                  <p className="text-emerald-200/60 text-sm">A pull request has been opened with the fix.</p>
+                </div>
+                <a href={scan.pr_url} target="_blank" rel="noopener noreferrer"
+                   className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold px-4 py-2 rounded-lg text-sm transition-colors">
+                  View Pull Request
+                </a>
+              </div>
             )}
 
-            {/* False positive terminal */}
-            {scan.status === "false_positive" && scan.exploit_output && (
-              <ExploitTerminal
-                output={scan.exploit_output}
-                exploitScript={scan.exploit_script}
-                status="not_vulnerable"
-                title="Exploit Output — Not Confirmed"
-              />
+            {(scan.exploit_output || scan.exploit_script) && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider pl-1">
+                  Exploit Proof
+                </h3>
+                <ExploitTerminal
+                  exploitOutput={scan.exploit_output || null}
+                  exploitScript={scan.exploit_script || null}
+                />
+              </div>
             )}
 
-            {/* Failed error */}
-            {scan.status === "failed" && scan.error_message && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                <p className="text-xs font-mono text-red-400 whitespace-pre-wrap">{scan.error_message}</p>
+            {(scan.original_code || scan.patch_diff) && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider pl-1 flex justify-between items-center">
+                  <span>Remediation Diff</span>
+                  {scan.patch_attempts ? (
+                    <span className="text-xs bg-slate-800 text-amber-400 px-2 py-0.5 rounded-full lowercase">
+                      {scan.patch_attempts} attempt(s)
+                    </span>
+                  ) : null}
+                </h3>
+                <CodeDiff
+                  originalCode={scan.original_code || null}
+                  patchedCode={scan.patch_diff || null}
+                />
               </div>
             )}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

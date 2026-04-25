@@ -1,6 +1,8 @@
 import logging
 from github import Github
+from github.GithubException import UnknownObjectException
 import config
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -9,8 +11,10 @@ def create_pull_request(
     base_branch: str,
     file_path: str,
     patched_code: str,
+    test_code: str,
     vulnerability_type: str,
-    exploit_output: str
+    exploit_output: str,
+    patch_attempts: int
 ) -> str:
     """
     Open a GitHub Pull Request with the fixed code and the exploit proof.
@@ -22,25 +26,62 @@ def create_pull_request(
     
     import random
     import string
-    random_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-    new_branch_name = f"aegis-fix-{vulnerability_type.lower().replace(' ', '-')}-{random_id}"
+
+    timestamp = int(time.time())
+    new_branch_name = f"aegis/fix-{vulnerability_type.lower().replace(' ', '-')}-{timestamp}"
     
     base_ref = repo.get_git_ref(f"heads/{base_branch}")
     repo.create_git_ref(f"refs/heads/{new_branch_name}", base_ref.object.sha)
     
-    file_contents = repo.get_contents(file_path, ref=base_branch)
-    
     commit_message = f"🛡️ Aegis Security Patch: Fix {vulnerability_type}"
-    repo.update_file(
-        file_contents.path,
-        commit_message,
-        patched_code,
-        file_contents.sha,
-        branch=new_branch_name
-    )
     
+    try:
+        file_contents = repo.get_contents(file_path, ref=base_branch)
+        repo.update_file(
+            file_contents.path,
+            commit_message,
+            patched_code,
+            file_contents.sha,
+            branch=new_branch_name
+        )
+    except UnknownObjectException:
+        repo.create_file(
+            file_path,
+            commit_message,
+            patched_code,
+            branch=new_branch_name
+        )
+
+    if test_code:
+        # Check if test file already exists or what path to use
+        # Let's assume we create a test file in the same dir
+        test_file_path = f"test_{file_path.split('/')[-1]}"
+        if '/' in file_path:
+            test_file_path = "/".join(file_path.split('/')[:-1]) + "/" + test_file_path
+
+        try:
+            test_file_contents = repo.get_contents(test_file_path, ref=base_branch)
+            repo.update_file(
+                test_file_contents.path,
+                f"🛡️ Aegis Security Patch: Add tests for {vulnerability_type}",
+                test_code,
+                test_file_contents.sha,
+                branch=new_branch_name
+            )
+        except UnknownObjectException:
+            repo.create_file(
+                test_file_path,
+                f"🛡️ Aegis Security Patch: Add tests for {vulnerability_type}",
+                test_code,
+                branch=new_branch_name
+            )
+
     pr_title = f"🛡️ Security Fix: {vulnerability_type} in {file_path}"
     
+    truncated_exploit_output = exploit_output
+    if len(truncated_exploit_output) > 800:
+        truncated_exploit_output = truncated_exploit_output[:800] + "\n...[truncated]"
+
     pr_body = f"""## Aegis Autonomous Security Patch
 
 Aegis detected a **{vulnerability_type}** vulnerability, automatically wrote an exploit to prove it was real, and generated this patch.
@@ -48,11 +89,12 @@ Aegis detected a **{vulnerability_type}** vulnerability, automatically wrote an 
 ### 🔴 Proof of Vulnerability (Agent A)
 We successfully exploited this code in an isolated sandbox. Here is the output of the exploit:
 ```text
-{exploit_output}
+{truncated_exploit_output}
 ```
 
 ### 🔵 The Fix (Agent B)
 The vulnerable code in `{file_path}` has been patched to prevent this exploit.
+Took {patch_attempts} attempt(s) to patch.
 
 ### 🟡 Verification (Agent C)
 ✅ The patch has been applied.

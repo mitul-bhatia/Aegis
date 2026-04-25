@@ -1,63 +1,30 @@
 "use client";
 
-import { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-
 interface StatCardProps {
-  icon: LucideIcon;
+  icon: string;
+  value: number | string;
   label: string;
-  value: string | number;
-  subLabel?: string;
-  accentClass?: string;
-  isActive?: boolean;
-  className?: string;
+  color?: string;
+  pulse?: boolean;
 }
 
-export function StatCard({
-  icon: Icon,
-  label,
-  value,
-  subLabel,
-  accentClass = "text-primary",
-  isActive = false,
-  className,
-}: StatCardProps) {
+export function StatCard({ icon, value, label, color = "#7c3aed", pulse = false }: StatCardProps) {
   return (
     <div
-      className={cn(
-        "aegis-glass relative flex items-center gap-4 rounded-xl p-4 transition-all duration-300",
-        isActive && "aegis-active-scan",
-        className
-      )}
+      className="bg-slate-900 border border-slate-700 rounded-xl p-4 flex items-center gap-4
+                 hover:border-slate-500 transition-all"
+      style={{ boxShadow: pulse ? `0 0 16px ${color}33` : undefined }}
     >
-      {/* Icon */}
       <div
-        className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5",
-          accentClass
-        )}
+        className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
+        style={{ backgroundColor: `${color}22`, border: `1px solid ${color}44` }}
       >
-        <Icon className="h-5 w-5" strokeWidth={1.8} />
+        {icon}
       </div>
-
-      {/* Text */}
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={cn("text-2xl font-bold tabular-nums leading-tight", accentClass)}>
-          {typeof value === "number" ? value.toLocaleString() : value}
-        </p>
-        {subLabel && (
-          <p className="mt-0.5 text-xs text-muted-foreground">{subLabel}</p>
-        )}
+      <div>
+        <div className="text-2xl font-bold font-mono text-slate-100">{value}</div>
+        <div className="text-xs text-slate-400">{label}</div>
       </div>
-
-      {/* Active pulse dot */}
-      {isActive && (
-        <span className="absolute right-3 top-3 flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-        </span>
-      )}
     </div>
   );
 }

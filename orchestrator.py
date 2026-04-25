@@ -48,6 +48,16 @@ def update_scan_status(scan_id: int, status: str, extra: dict = None):
                     scan.patch_diff = extra["patch_diff"]
                 if "pr_url" in extra:
                     scan.pr_url = extra["pr_url"]
+                if "error_message" in extra:
+                    scan.error_message = extra["error_message"]
+                if "original_code" in extra:
+                    scan.original_code = extra["original_code"]
+                if "exploit_script" in extra:
+                    scan.exploit_script = extra["exploit_script"]
+                if "findings_json" in extra:
+                    scan.findings_json = extra["findings_json"]
+                if "patch_attempts" in extra:
+                    scan.patch_attempts = extra["patch_attempts"]
                 # New agent-identity fields
                 if "current_agent" in extra:
                     scan.current_agent = extra["current_agent"]

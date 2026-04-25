@@ -65,6 +65,11 @@ async def scan_event_generator(repo_id: Optional[int] = None):
                         "exploit_output": scan.exploit_output,
                         "patch_diff": scan.patch_diff,
                         "pr_url": scan.pr_url,
+                        "original_code": scan.original_code,
+                        "exploit_script": scan.exploit_script,
+                        "findings_json": scan.findings_json,
+                        "patch_attempts": scan.patch_attempts,
+                        "error_message": scan.error_message,
                         "created_at": scan.created_at.isoformat() if scan.created_at else None,
                         "completed_at": scan.completed_at.isoformat() if scan.completed_at else None
                     }

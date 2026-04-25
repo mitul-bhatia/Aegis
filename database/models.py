@@ -82,6 +82,7 @@ class Scan(Base):
     pr_url = Column(String(500), nullable=True)         # GitHub PR link
     error_message = Column(Text, nullable=True)         # If pipeline failed
 
+
     # Agent identity (for real-time UI — which agent is working + what it's doing)
     original_code = Column(Text, nullable=True)         # Vulnerable code BEFORE patch (for diff view)
     exploit_script = Column(Text, nullable=True)        # The exploit code Agent 2 generated

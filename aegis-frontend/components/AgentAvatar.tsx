@@ -1,144 +1,47 @@
 "use client";
 
-import { Search, Crosshair, Wrench, ShieldCheck, LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-// ── Agent Config ──────────────────────────────────────────
-export type AgentType = "finder" | "exploiter" | "engineer" | "verifier";
-
-interface AgentConfig {
-  icon: LucideIcon;
-  label: string;
-  description: string;
-  colorClass: string;
-  bgClass: string;
-  borderClass: string;
-  glowClass: string;
-  textClass: string;
-}
-
-const AGENTS: Record<AgentType, AgentConfig> = {
-  finder: {
-    icon: Search,
-    label: "Finder",
-    description: "Analyzes code for vulnerabilities",
-    colorClass: "text-violet-400",
-    bgClass: "bg-violet-500/15",
-    borderClass: "border-violet-500/30",
-    glowClass: "shadow-[0_0_16px_oklch(0.70_0.18_285/0.35)]",
-    textClass: "text-violet-300",
-  },
-  exploiter: {
-    icon: Crosshair,
-    label: "Exploiter",
-    description: "Proves vulnerabilities are real",
-    colorClass: "text-red-400",
-    bgClass: "bg-red-500/15",
-    borderClass: "border-red-500/30",
-    glowClass: "shadow-[0_0_16px_oklch(0.65_0.22_25/0.35)]",
-    textClass: "text-red-300",
-  },
-  engineer: {
-    icon: Wrench,
-    label: "Engineer",
-    description: "Patches the vulnerable code",
-    colorClass: "text-amber-400",
-    bgClass: "bg-amber-500/15",
-    borderClass: "border-amber-500/30",
-    glowClass: "shadow-[0_0_16px_oklch(0.80_0.16_75/0.35)]",
-    textClass: "text-amber-300",
-  },
-  verifier: {
-    icon: ShieldCheck,
-    label: "Verifier",
-    description: "Confirms the fix is complete",
-    colorClass: "text-emerald-400",
-    bgClass: "bg-emerald-500/15",
-    borderClass: "border-emerald-500/30",
-    glowClass: "shadow-[0_0_16px_oklch(0.74_0.16_155/0.35)]",
-    textClass: "text-emerald-300",
-  },
-};
-
-// ── Size Config ───────────────────────────────────────────
-const SIZES = {
-  sm: { container: "h-7 w-7",   icon: "h-3.5 w-3.5", label: "text-xs" },
-  md: { container: "h-10 w-10", icon: "h-5 w-5",     label: "text-sm" },
-  lg: { container: "h-16 w-16", icon: "h-8 w-8",     label: "text-base" },
-};
-
-// ── AgentAvatar Component ─────────────────────────────────
 interface AgentAvatarProps {
-  agent: AgentType;
+  agent: "finder" | "exploiter" | "engineer" | "verifier" | null;
   size?: "sm" | "md" | "lg";
-  showLabel?: boolean;
-  showRing?: boolean;
-  className?: string;
+  pulse?: boolean;
 }
 
-export function AgentAvatar({
-  agent,
-  size = "md",
-  showLabel = false,
-  showRing = false,
-  className,
-}: AgentAvatarProps) {
-  const config = AGENTS[agent];
-  const sizeConfig = SIZES[size];
-  const Icon = config.icon;
+const AGENT_CONFIG = {
+  finder:    { label: "Finder",    color: "#7c3aed", icon: "🔍", bg: "bg-violet-950" },
+  exploiter: { label: "Exploiter", color: "#dc2626", icon: "⚡", bg: "bg-red-950"    },
+  engineer:  { label: "Engineer",  color: "#d97706", icon: "🔧", bg: "bg-amber-950"  },
+  verifier:  { label: "Verifier",  color: "#059669", icon: "🛡️", bg: "bg-emerald-950"},
+};
 
+const SIZE = { sm: "w-6 h-6 text-xs", md: "w-8 h-8 text-sm", lg: "w-12 h-12 text-lg" };
+
+export function AgentAvatar({ agent, size = "md", pulse = false }: AgentAvatarProps) {
+  if (!agent) return null;
+  const cfg = AGENT_CONFIG[agent];
   return (
-    <div className={cn("flex flex-col items-center gap-1.5", className)}>
-      <div className="relative inline-flex items-center justify-center">
-        {/* Pulse rings for active state */}
-        {showRing && (
-          <>
-            <span
-              className={cn(
-                "absolute rounded-full border opacity-0",
-                config.borderClass
-              )}
-              style={{
-                inset: "-6px",
-                animation: "pulse-ring 1.8s ease-out infinite",
-              }}
-            />
-            <span
-              className={cn(
-                "absolute rounded-full border opacity-0",
-                config.borderClass
-              )}
-              style={{
-                inset: "-12px",
-                animation: "pulse-ring 1.8s ease-out infinite 0.4s",
-              }}
-            />
-          </>
+    <div className="flex items-center gap-2">
+      <div
+        className={`${SIZE[size]} ${cfg.bg} rounded-full flex items-center justify-center
+                    border-2 relative flex-shrink-0`}
+        style={{
+          borderColor: cfg.color,
+          boxShadow: pulse ? `0 0 12px ${cfg.color}` : undefined,
+          animation: pulse ? "status-glow 2s ease-in-out infinite" : undefined,
+        }}
+      >
+        <span>{cfg.icon}</span>
+        {pulse && (
+          <span
+            className="absolute inset-0 rounded-full animate-ping opacity-30"
+            style={{ backgroundColor: cfg.color }}
+          />
         )}
-
-        {/* Avatar circle */}
-        <div
-          className={cn(
-            "relative flex items-center justify-center rounded-full border transition-shadow duration-300",
-            config.bgClass,
-            config.borderClass,
-            config.colorClass,
-            showRing && config.glowClass,
-            sizeConfig.container
-          )}
-        >
-          <Icon className={cn("shrink-0", sizeConfig.icon)} strokeWidth={1.8} />
-        </div>
       </div>
-
-      {showLabel && (
-        <span className={cn("font-medium", config.textClass, sizeConfig.label)}>
-          {config.label}
+      {size !== "sm" && (
+        <span className="text-xs font-mono font-semibold" style={{ color: cfg.color }}>
+          {cfg.label}
         </span>
       )}
     </div>
   );
 }
-
-export { AGENTS };
-export type { AgentConfig };

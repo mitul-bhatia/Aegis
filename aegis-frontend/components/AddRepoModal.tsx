@@ -8,10 +8,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Plus,
   Loader2,
   CheckCircle2,
 } from "lucide-react";
@@ -21,29 +19,20 @@ type ProgressState = "idle" | "validating" | "webhook" | "indexing" | "complete"
 
 export function AddRepoModal({
   userId,
+  onClose,
   onSuccess,
-  forceOpen,
-  onForceOpenHandled,
 }: {
   userId: number;
+  onClose: () => void;
   onSuccess: () => void;
-  forceOpen?: boolean;
-  onForceOpenHandled?: () => void;
 }) {
   const [url, setUrl] = useState("");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
-  useEffect(() => {
-    if (forceOpen) {
-      setTimeout(() => setOpen(true), 0);
-      onForceOpenHandled?.();
-    }
-  }, [forceOpen, onForceOpenHandled]);
   const [state, setState] = useState<ProgressState>("idle");
   const [error, setError] = useState("");
   const [repoId, setRepoId] = useState<number | null>(null);
 
-  // Poll repo status when indexing
   useEffect(() => {
     if (state !== "indexing" || !repoId) return;
 
@@ -56,10 +45,6 @@ export function AddRepoModal({
           setTimeout(() => {
             setOpen(false);
             onSuccess();
-            // Reset state
-            setState("idle");
-            setUrl("");
-            setRepoId(null);
           }, 1500);
         }
       } catch (err) {
@@ -75,24 +60,17 @@ export function AddRepoModal({
     setError("");
 
     try {
-      // Step 1: Validating
       setState("validating");
       await new Promise((resolve) => setTimeout(resolve, 400));
 
-      // Step 2: Installing webhook + saving repo
       setState("webhook");
       const result = await api.addRepo(userId, url);
       setRepoId(result.id);
 
-      // Step 3: Done! Indexing happens in the background on the backend.
-      // The dashboard will show "Setting Up" status until it completes.
       setState("complete");
       setTimeout(() => {
         setOpen(false);
         onSuccess();
-        setState("idle");
-        setUrl("");
-        setRepoId(null);
       }, 1200);
     } catch (err: unknown) {
       setState("error");
@@ -103,26 +81,15 @@ export function AddRepoModal({
   function handleOpenChange(isOpen: boolean) {
     if (!isOpen) {
       if (state === "validating" || state === "webhook" || state === "indexing") {
-        return; // Prevent closing while processing
+        return;
       }
       setOpen(false);
-      setState("idle");
-      setUrl("");
-      setError("");
-      setRepoId(null);
-    } else {
-      setTimeout(() => setOpen(true), 0);
+      onClose();
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button className="gap-2 aegis-glow">
-          <Plus className="h-4 w-4" />
-          Monitor Repo
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a Repository</DialogTitle>
@@ -149,9 +116,7 @@ export function AddRepoModal({
           </form>
         ) : (
           <div className="space-y-6 py-4">
-            {/* Progress steps */}
             <div className="space-y-4">
-              {/* Step 1: Validating */}
               <div className="flex items-center gap-3">
                 {state === "validating" ? (
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -166,7 +131,6 @@ export function AddRepoModal({
                 </div>
               </div>
 
-              {/* Step 2: Installing webhook */}
               <div className="flex items-center gap-3">
                 {state === "validating" ? (
                   <div className="h-5 w-5 rounded-full border-2 border-muted" />
@@ -183,7 +147,6 @@ export function AddRepoModal({
                 </div>
               </div>
 
-              {/* Step 3: Indexing codebase */}
               <div className="flex items-center gap-3">
                 {state === "validating" || state === "webhook" ? (
                   <div className="h-5 w-5 rounded-full border-2 border-muted" />
@@ -201,7 +164,6 @@ export function AddRepoModal({
               </div>
             </div>
 
-            {/* Complete message */}
             {state === "complete" && (
               <div className="rounded-lg bg-green-500/10 p-4 text-center border border-green-500/20">
                 <CheckCircle2 className="mx-auto h-8 w-8 text-green-500 mb-2" />
