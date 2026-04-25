@@ -1,0 +1,516 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ═══════════════════════════════════════════════════
+     LIGHT MODE (default :root)
+     ═══════════════════════════════════════════════════ */
+  :root {
+    --background:  #F8FAFC;
+    --surface:     #FFFFFF;
+    --card:        #F1F5F9;
+    --border:      #E2E8F0;
+    --foreground:  #0F172A;
+    --muted:       #64748B;
+
+    --green:       #00C96A;
+    --green-dim:   rgba(0,201,106,0.10);
+    --red:         #E8192C;
+    --red-dim:     rgba(232,25,44,0.10);
+    --blue:        #2B9FE8;
+    --blue-dim:    rgba(43,159,232,0.10);
+    --amber:       #D49700;
+    --amber-dim:   rgba(212,151,0,0.10);
+    --violet:      #7C3AED;
+    --violet-dim:  rgba(124,58,237,0.10);
+
+    /* Agent identity */
+    --agent-finder:    #7C3AED;
+    --agent-exploiter: #E8192C;
+    --agent-engineer:  #D49700;
+    --agent-verifier:  #00C96A;
+
+    /* shadcn compatibility */
+    --primary:            #00C96A;
+    --primary-foreground: #0F172A;
+    --secondary:          #F1F5F9;
+    --secondary-foreground: #0F172A;
+    --destructive:        #E8192C;
+    --destructive-foreground: #FFFFFF;
+    --accent:             #F1F5F9;
+    --accent-foreground:  #0F172A;
+    --popover:            #FFFFFF;
+    --popover-foreground: #0F172A;
+    --input:              #E2E8F0;
+    --ring:               #00C96A;
+    --radius: 4px;
+
+    /* Sidebar */
+    --sidebar:            #F8FAFC;
+    --sidebar-foreground: #0F172A;
+    --sidebar-primary:    #00C96A;
+    --sidebar-primary-foreground: #0F172A;
+    --sidebar-accent:     #F1F5F9;
+    --sidebar-accent-foreground: #0F172A;
+    --sidebar-border:     #E2E8F0;
+    --sidebar-ring:       #00C96A;
+
+    /* Chart */
+    --chart-1: #00C96A;
+    --chart-2: #2B9FE8;
+    --chart-3: #E8192C;
+    --chart-4: #D49700;
+    --chart-5: #7C3AED;
+
+    /* Easing */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* ═══════════════════════════════════════════════════
+     DARK MODE — matches Design.md exactly
+     ═══════════════════════════════════════════════════ */
+  .dark {
+    --background:  #06080B;
+    --surface:     #0C1017;
+    --card:        #111820;
+    --border:      #1E2D3D;
+    --foreground:  #E8EFF7;
+    --muted:       #5A7A94;
+
+    --green:       #00E87A;
+    --green-dim:   rgba(0,232,122,0.12);
+    --red:         #FF2B4A;
+    --red-dim:     rgba(255,43,74,0.12);
+    --blue:        #4CB8FF;
+    --blue-dim:    rgba(76,184,255,0.12);
+    --amber:       #FFB800;
+    --amber-dim:   rgba(255,184,0,0.12);
+    --violet:      #B47FFF;
+    --violet-dim:  rgba(180,127,255,0.12);
+
+    /* Agent identity */
+    --agent-finder:    #B47FFF;
+    --agent-exploiter: #FF2B4A;
+    --agent-engineer:  #FFB800;
+    --agent-verifier:  #00E87A;
+
+    /* shadcn compatibility */
+    --primary:            #00E87A;
+    --primary-foreground: #06080B;
+    --secondary:          #111820;
+    --secondary-foreground: #E8EFF7;
+    --destructive:        #FF2B4A;
+    --destructive-foreground: #E8EFF7;
+    --accent:             #1E2D3D;
+    --accent-foreground:  #E8EFF7;
+    --popover:            #111820;
+    --popover-foreground: #E8EFF7;
+    --input:              #1E2D3D;
+    --ring:               #00E87A;
+
+    /* Sidebar */
+    --sidebar:            #0C1017;
+    --sidebar-foreground: #E8EFF7;
+    --sidebar-primary:    #00E87A;
+    --sidebar-primary-foreground: #06080B;
+    --sidebar-accent:     #1E2D3D;
+    --sidebar-accent-foreground: #E8EFF7;
+    --sidebar-border:     #1E2D3D;
+    --sidebar-ring:       #00E87A;
+
+    /* Chart */
+    --chart-1: #00E87A;
+    --chart-2: #4CB8FF;
+    --chart-3: #FF2B4A;
+    --chart-4: #FFB800;
+    --chart-5: #B47FFF;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-none;
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-dm-sans, 'DM Sans', sans-serif);
+    font-weight: 300;
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* Select */
+  select {
+    @apply appearance-none;
+    background-color: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%235A7A94' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2rem;
+    font-family: var(--font-share-tech-mono, monospace);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    transition: border-color 0.2s;
+  }
+  select:focus { border-color: var(--green); outline: none; }
+  select option { background-color: var(--card); color: var(--foreground); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   KEYFRAME ANIMATIONS
+   ═══════════════════════════════════════════════════════ */
+
+/* Hero scanning grid drift */
+@keyframes gridShift {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 60px 60px, 60px 60px; }
+}
+
+/* Scanning line top → bottom */
+@keyframes scanDown {
+  0%   { top: -2px; opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* Classic pulse dot */
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.6); }
+}
+
+/* Threat banner marquee */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Pipeline arrow glow */
+@keyframes arrowPulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 1; }
+}
+
+/* Log entry entrance */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* CTA button shimmer */
+@keyframes shimmerSweep {
+  0%   { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
+
+/* Agent pulse rings */
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+@keyframes pulse-ring-2 {
+  0%   { transform: scale(1);   opacity: 0.5; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Pipeline connector fill left-to-right */
+@keyframes pipeline-fill {
+  0%   { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0% 0 0); }
+}
+
+/* CRT terminal scanline drift */
+@keyframes scanline-drift {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(200%); }
+}
+
+/* Active scan card border glow */
+@keyframes status-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0,232,122,0.3), 0 0 20px rgba(0,232,122,0.08); }
+  50%       { box-shadow: 0 0 0 1px rgba(0,232,122,0.6), 0 0 30px rgba(0,232,122,0.15); }
+}
+
+/* Card entrance */
+@keyframes agent-appear {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.97); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Gradient border sweep */
+@keyframes gradient-sweep {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Count-up entrance */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Cursor blink for terminal */
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Typewriter reveal */
+@keyframes typewriter {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+/* Ping / status dot */
+@keyframes status-ping {
+  0%   { transform: scale(1); opacity: 0.8; }
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   UTILITY CLASSES
+   ═══════════════════════════════════════════════════════ */
+@layer utilities {
+
+  /* ── Hero scanning grid ── */
+  .aegis-grid-bg {
+    background-image:
+      linear-gradient(rgba(0,232,122,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,232,122,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridShift 20s linear infinite;
+  }
+  .dark .aegis-grid-bg {
+    background-image:
+      linear-gradient(rgba(0,232,122,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,232,122,0.04) 1px, transparent 1px);
+  }
+  :root:not(.dark) .aegis-grid-bg {
+    background-image:
+      linear-gradient(rgba(0,201,106,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,201,106,0.06) 1px, transparent 1px);
+  }
+
+  /* ── Frosted nav glass ── */
+  .aegis-glass-nav {
+    background: rgba(6,8,11,0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  :root:not(.dark) .aegis-glass-nav {
+    background: rgba(248,250,252,0.90);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Terminal container ── */
+  .aegis-terminal {
+    background: #050508;
+    font-family: var(--font-share-tech-mono, 'Share Tech Mono', monospace);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: #7BFFC7;
+    position: relative;
+    overflow: hidden;
+  }
+  /* CRT scanlines */
+  .aegis-terminal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.12) 2px,
+      rgba(0,0,0,0.12) 4px
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+  /* Moving scanline */
+  .aegis-terminal::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      rgba(0,232,122,0.06),
+      transparent
+    );
+    animation: scanline-drift 6s linear infinite;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* ── Section tag (// LABEL) ── */
+  .aegis-section-tag {
+    font-family: var(--font-share-tech-mono, monospace);
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .aegis-section-tag::before {
+    content: '//';
+    color: var(--border);
+  }
+
+  /* ── Card base (Design.md stack-cell) ── */
+  .aegis-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Status dot ── */
+  .aegis-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  /* ── Animated gradient border ── */
+  .aegis-gradient-border {
+    position: relative;
+    background: var(--card);
+  }
+  .aegis-gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    background: linear-gradient(135deg, var(--green), var(--blue), var(--green));
+    background-size: 200% 200%;
+    animation: gradient-sweep 3s linear infinite;
+    z-index: -1;
+    opacity: 0.7;
+  }
+
+  /* ── Active scan glow ── */
+  .aegis-active-scan {
+    animation: status-glow 2.5s ease-in-out infinite;
+    border-color: rgba(0,232,122,0.4) !important;
+  }
+  :root:not(.dark) .aegis-active-scan {
+    animation: none;
+    border-color: var(--green) !important;
+    box-shadow: 0 0 0 1px rgba(0,201,106,0.3), 0 0 16px rgba(0,201,106,0.08);
+  }
+
+  /* ── CTA button shimmer ── */
+  .aegis-btn-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .aegis-btn-shimmer::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 40%; height: 200%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transform: translateX(-100%) skewX(-15deg);
+  }
+  .aegis-btn-shimmer:hover::after {
+    animation: shimmerSweep 0.6s ease forwards;
+  }
+
+  /* ── Pipeline node active rings ── */
+  .aegis-node-active::before,
+  .aegis-node-active::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    opacity: 0;
+    animation: pulse-ring 1.8s ease-out infinite;
+  }
+  .aegis-node-active::after {
+    inset: -10px;
+    animation: pulse-ring-2 1.8s ease-out infinite 0.4s;
+  }
+
+  /* ── SVG noise texture ── */
+  .aegis-noise {
+    position: relative;
+  }
+  .aegis-noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.12;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ── Staggered card entrance ── */
+  .animate-agent-appear {
+    animation: agent-appear 0.5s var(--ease-out-expo, cubic-bezier(0.16,1,0.3,1)) both;
+  }
+  .animate-agent-appear:nth-child(1) { animation-delay: 0ms; }
+  .animate-agent-appear:nth-child(2) { animation-delay: 100ms; }
+  .animate-agent-appear:nth-child(3) { animation-delay: 200ms; }
+  .animate-agent-appear:nth-child(4) { animation-delay: 300ms; }
+
+  /* ── Pipeline connector fill ── */
+  .pipeline-fill {
+    animation: pipeline-fill 0.6s cubic-bezier(0.16,1,0.3,1) both;
+  }
+
+  /* ── Gradient text ── */
+  .aegis-gradient-text {
+    background: linear-gradient(135deg, var(--green), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Hover card lift ── */
+  .aegis-card-hover {
+    transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), box-shadow 0.2s ease;
+  }
+  .aegis-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  /* ── Status dot ping ── */
+  .status-ping {
+    position: relative;
+    display: inline-flex;
+  }
+  .status-ping::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: currentColor;
+    animation: status-ping 1.5s ease-out infinite;
+  }
+}

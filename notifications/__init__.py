@@ -1,0 +1,1 @@
+from notifications.notifier import notify_scan_event

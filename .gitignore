@@ -1,0 +1,45 @@
+# Environment & secrets
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Aegis runtime data
+aegis_vector_db/
+repos/
+aegis.db
+*.db
+*.log
+backend.log
+frontend.log
+aegis-frontend/lint-output.txt
+aegis-frontend/frontend.log
+out.err
+out.json
+semgrep.stderr
+semgrep.stdout
+
+# Docker
+*.tar
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+test_repo/.git/
+.env

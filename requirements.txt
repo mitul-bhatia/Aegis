@@ -1,0 +1,47 @@
+# Aegis — Dependencies
+# Web server
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# AI / LLM
+# Groq (Finder + Exploiter agents — ultra-fast LPU inference)
+groq>=0.4.0
+# Mistral (Engineer agent — devstral for quality patches)
+mistralai>=1.0.0
+
+# RAG / Vector DB
+chromadb>=0.4.22
+sentence-transformers>=2.7.0   # Better code-aware embeddings (BAAI/bge-small-en-v1.5)
+
+# GitHub integration
+PyGithub>=2.1.1
+gitpython>=3.1.40
+
+# Docker sandbox
+docker>=7.0.0
+
+# HTTP requests
+requests>=2.31.0
+
+# Database (SQLite + ORM)
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# Security — token encryption
+cryptography>=41.0.0
+
+# Rate limiting
+slowapi>=0.1.9
+
+# Structured logging
+structlog>=24.1.0
+
+# LangGraph — pipeline orchestration state machine
+langgraph>=0.2.0
+langchain-core>=0.3.0
+
+# Security scanner (installed separately via pip)
+# semgrep
