@@ -18,9 +18,9 @@ from database.db import SessionLocal
 from database.models import Repo, Scan, ScanStatus
 from orchestrator import run_aegis_pipeline
 from intelligence.threat_engine import ThreatIntelligenceEngine
-from ml.vulnerability_predictor import VulnerabilityPredictor
 
 logger = logging.getLogger(__name__)
+# Note: ML vulnerability predictor removed - was unused in main pipeline
 
 
 class ScanPriority(Enum):
@@ -53,7 +53,6 @@ class IntelligentScheduler:
         
         # Intelligence components
         self.threat_engine = ThreatIntelligenceEngine()
-        self.vulnerability_predictor = VulnerabilityPredictor()
         
         # Learning data
         self.scan_history: List[Dict] = []

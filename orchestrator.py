@@ -97,6 +97,8 @@ def _create_scan(db, repo_id: int, commit_sha: str, branch: str) -> Scan:
     """
     Create a new scan record, or return the existing one if this commit
     was already scanned (prevents duplicate runs from webhook retries).
+    
+    ALLOWS RETRY: If previous scan failed, it will be deleted and a new one created.
     """
     existing = db.query(Scan).filter(
         Scan.repo_id == repo_id,
@@ -104,11 +106,20 @@ def _create_scan(db, repo_id: int, commit_sha: str, branch: str) -> Scan:
     ).first()
 
     if existing:
-        logger.info(
-            f"Duplicate scan for {commit_sha[:8]} "
-            f"(scan #{existing.id}, status={existing.status}) — skipping."
-        )
-        return existing
+        # Allow retry if previous scan failed or was a false positive
+        if existing.status in [ScanStatus.FAILED.value, ScanStatus.FALSE_POSITIVE.value]:
+            logger.info(
+                f"Retrying failed scan for {commit_sha[:8]} "
+                f"(previous scan #{existing.id}, status={existing.status})"
+            )
+            db.delete(existing)
+            db.commit()
+        else:
+            logger.info(
+                f"Duplicate scan for {commit_sha[:8]} "
+                f"(scan #{existing.id}, status={existing.status}) — skipping."
+            )
+            return existing
 
     scan = Scan(
         repo_id=repo_id,

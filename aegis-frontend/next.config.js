@@ -1,14 +1,30 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false,
-  async rewrites() {
-    return [
-      {
-        source: "/api/v1/:path*",
-        destination: "http://localhost:8000/api/v1/:path*",
-      },
-    ];
+  output: 'standalone',
+  
+  // Environment variables
+  env: {
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000',
   },
-};
+  
+  // Vercel-specific optimizations
+  experimental: {
+    optimizeCss: true,
+  },
+  
+  // Image optimization
+  images: {
+    domains: ['avatars.githubusercontent.com'],
+  },
+  
+  // Disable x-powered-by header
+  poweredByHeader: false,
+  
+  // Compression
+  compress: true,
+  
+  // React strict mode
+  reactStrictMode: true,
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig

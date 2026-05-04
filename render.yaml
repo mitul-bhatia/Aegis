@@ -1,0 +1,77 @@
+# Render Blueprint for Aegis Security System
+# Deploys backend + database + frontend
+
+services:
+  # Backend API Service
+  - type: web
+    name: aegis-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      # Sandbox Service (Fly.io)
+      - key: SANDBOX_SERVICE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: SANDBOX_API_KEY
+        generateValue: true
+      
+      # AI API Keys
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      
+      # GitHub Integration
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        generateValue: true
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      
+      # Configuration
+      - key: DEMO_MODE
+        value: false
+      - key: AUTO_FALLBACK_TO_DEMO
+        value: false
+      - key: PORT
+        value: 8000
+      - key: BACKEND_URL
+        value: https://aegis-backend.onrender.com
+      - key: FRONTEND_URL
+        value: https://aegis-frontend.onrender.com
+      
+      # Database (auto-configured by Render)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aegis-db
+          property: connectionString
+
+  # PostgreSQL Database
+  - type: pserv
+    name: aegis-db
+    env: docker
+    plan: free  # Free for 90 days, then $7/month
+    ipAllowList: []  # Allow all IPs
+    databaseName: aegis
+    databaseUser: aegis
+
+  # Frontend (Next.js)
+  - type: web
+    name: aegis-frontend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: "cd aegis-frontend && npm install && npm run build"
+    startCommand: "cd aegis-frontend && npm start"
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_BACKEND_URL
+        value: https://aegis-backend.onrender.com
+      - key: PORT
+        value: 3000

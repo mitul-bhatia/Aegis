@@ -73,7 +73,7 @@ export default function LandingPage() {
           {/* Status badge */}
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontFamily: "var(--font-share-tech-mono)", fontSize: 11, color: "var(--green)", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 28, padding: "7px 18px", border: "1px solid var(--green-dim)", background: "var(--green-dim)" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--green)", animation: "pulse 2s ease-in-out infinite" }} />
-            System Operational · 4 Agents Active · 0 Escalations
+            System Operational · 7 Agents Active · Real-Time Monitoring
           </div>
 
           {/* H1 */}
@@ -89,7 +89,7 @@ export default function LandingPage() {
           </div>
 
           <p style={{ maxWidth: 560, margin: "0 auto 44px", fontSize: 17, color: "var(--muted)", fontWeight: 300, lineHeight: 1.65 }}>
-            A 4-agent AI pipeline that detects, exploits, patches, and validates security vulnerabilities — fully autonomously, around the clock.
+            A 7-agent AI pipeline that detects, exploits, patches, and validates security vulnerabilities — fully autonomously, with Docker isolation and real-time monitoring.
           </p>
 
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
@@ -139,10 +139,10 @@ export default function LandingPage() {
       <section id="agents" style={{ padding: "80px 48px", maxWidth: 1280, margin: "0 auto" }}>
         <div className="aegis-section-tag" style={{ marginBottom: 14 }}>Agent Architecture</div>
         <h2 style={{ fontFamily: "var(--font-syne)", fontWeight: 700, fontSize: "clamp(28px, 4vw, 44px)", lineHeight: 1.1, marginBottom: 12 }}>
-          Four-Agent Swarm
+          Seven-Agent Pipeline
         </h2>
         <p style={{ fontSize: 16, color: "var(--muted)", maxWidth: 500, marginBottom: 48, fontWeight: 300 }}>
-          Modeled after a real security team — finder, red teamer, engineer, reviewer — running 24/7 at machine speed.
+          Triage → Finder → Exploiter → Engineer → Safety Validator → Approval Gate → PR Creator — running 24/7 with Docker isolation.
         </p>
 
         {/* Agent grid — 1px gap creates Design.md border effect */}
@@ -229,10 +229,10 @@ export default function LandingPage() {
       {/* ── CTA ── */}
       <div id="research" style={{ padding: "80px 48px", textAlign: "center", position: "relative", overflow: "hidden", borderTop: "1px solid var(--border)" }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 40% at 50% 100%, rgba(0,232,122,0.05), transparent 60%)", pointerEvents: "none" }} />
-        <div className="aegis-section-tag" style={{ justifyContent: "center", marginBottom: 20, position: "relative" }}>// Validated at DARPA AIxCC · DEF CON 33 · August 2025</div>
+        <div className="aegis-section-tag" style={{ justifyContent: "center", marginBottom: 20, position: "relative" }}>// Based on DARPA AIxCC Research · 88% Implementation</div>
         <h2 style={{ fontFamily: "var(--font-syne)", fontWeight: 700, fontSize: "clamp(32px, 5vw, 54px)", marginBottom: 16, position: "relative" }}>Security at Machine Speed</h2>
         <p style={{ fontSize: 17, color: "var(--muted)", marginBottom: 36, position: "relative", fontWeight: 300 }}>
-          From commit webhook to merged patch, fully autonomous — averaging 45 minutes and $152 per remediated vulnerability.
+          From commit webhook to merged patch, fully autonomous — averaging 2-5 minutes with Docker-isolated exploit validation.
         </p>
         <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", position: "relative" }}>
           <button onClick={handleLogin} className="aegis-btn-shimmer" style={{

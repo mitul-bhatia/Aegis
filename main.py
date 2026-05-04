@@ -19,6 +19,7 @@ from routes.scans import router as scans_router, set_event_loop
 from routes.scheduler import router as scheduler_router
 from routes.intelligence import router as intelligence_router
 from routes.export import router as export_router
+from routes.analytics import router as analytics_router
 from scheduler import start_autonomous_scheduler, stop_autonomous_scheduler
 
 # Initialize configuration
@@ -48,6 +49,7 @@ app.include_router(scans_router)
 app.include_router(scheduler_router)
 app.include_router(intelligence_router)
 app.include_router(export_router)
+app.include_router(analytics_router)
 
 # Create database tables on startup
 @app.on_event("startup")

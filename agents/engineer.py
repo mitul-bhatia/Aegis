@@ -17,6 +17,7 @@ from mistralai.client import Mistral
 from pydantic import ValidationError
 
 import config
+from utils.retry import retry_with_backoff
 # Import the shared schema — defined once in agents/schemas.py
 from agents.schemas import EngineerOutput
 
@@ -148,8 +149,13 @@ Output a JSON object with "patched_code" and "test_code". No markdown."""
 
 # ── Helpers ───────────────────────────────────────────────
 
+@retry_with_backoff(
+    max_attempts=3,
+    initial_delay=2.0,
+    exceptions=(Exception,),
+)
 def _call_mistral(user_prompt: str, model: str) -> str:
-    """Call the Mistral API and return the raw response string."""
+    """Call the Mistral API with retry logic and return the raw response string."""
     response = client.chat.complete(
         model=model,
         max_tokens=config.ENGINEER_MAX_TOKENS,

@@ -13,17 +13,21 @@ import logging
 from typing import List, Dict
 
 from groq import Groq
+from mistralai.client import Mistral
 from pydantic import ValidationError
 
 import config
 from agents.schemas import VulnerabilityFinding
 from utils.cvss import calculate_cvss_base_score
 from intelligence.vuln_patterns import get_pattern_context, get_all_indicators
+from utils.retry import retry_with_backoff, is_rate_limit_error, is_transient_error
 
 logger = logging.getLogger(__name__)
 
 # Groq client — initialized once at import time
-client = Groq(api_key=config.GROQ_API_KEY)
+groq_client = Groq(api_key=config.GROQ_API_KEY)
+# Mistral client — fallback when GROQ hits rate limits
+mistral_client = Mistral(api_key=config.MISTRAL_API_KEY)
 
 
 # ── System prompt ─────────────────────────────────────────
@@ -205,19 +209,59 @@ Return a JSON object: {{"findings": [...]}}"""
 
 # ── Helpers ───────────────────────────────────────────────
 
+@retry_with_backoff(
+    max_attempts=3,
+    initial_delay=2.0,
+    exceptions=(Exception,),
+)
 def _call_groq(user_prompt: str) -> str:
     """
-    Call the Groq API in plain text mode.
+    Call the Groq API in plain text mode with fallback to Mistral on rate limits.
+    Includes automatic retry with exponential backoff for transient errors.
+    
     We do NOT use response_format=json_object because Groq's server-side
     JSON validator rejects outputs containing SQL/code with single-quote
     escape sequences (e.g. \') even when the content is structurally valid.
     We extract and repair JSON client-side instead.
     Returns the raw string content from the model.
     """
-    response = client.chat.completions.create(
-        model=config.HACKER_MODEL,
+    try:
+        response = groq_client.chat.completions.create(
+            model=config.HACKER_MODEL,
+            max_tokens=config.HACKER_MAX_TOKENS,
+            timeout=config.HACKER_TIMEOUT_MS / 1000,
+            messages=[
+                {"role": "system", "content": FINDER_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        # Check if it's a rate limit error
+        if is_rate_limit_error(e):
+            logger.warning(f"GROQ rate limit hit, falling back to Mistral: {e}")
+            # Fallback to Mistral with retry
+            return _call_mistral_fallback(user_prompt)
+        else:
+            # Re-raise for retry decorator to handle
+            logger.error(f"Finder API call failed: {e}")
+            raise
+
+
+@retry_with_backoff(
+    max_attempts=2,
+    initial_delay=3.0,
+    exceptions=(Exception,),
+)
+def _call_mistral_fallback(user_prompt: str) -> str:
+    """
+    Fallback to Mistral when GROQ fails.
+    Includes retry logic for transient errors.
+    """
+    response = mistral_client.chat.complete(
+        model="mistral-large-latest",
         max_tokens=config.HACKER_MAX_TOKENS,
-        timeout=config.HACKER_TIMEOUT_MS / 1000,
+        timeout_ms=config.HACKER_TIMEOUT_MS,
         messages=[
             {"role": "system", "content": FINDER_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},

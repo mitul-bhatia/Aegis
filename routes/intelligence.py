@@ -15,14 +15,13 @@ from database.db import SessionLocal
 from database.models import Repo, Scan, ScanStatus
 from scheduler_module.intelligent_scheduler import intelligent_scheduler
 from intelligence.threat_engine import ThreatIntelligenceEngine
-from ml.vulnerability_predictor import VulnerabilityPredictor
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/intelligence", tags=["intelligence"])
 
 # Initialize intelligence components
 threat_engine = ThreatIntelligenceEngine()
-vulnerability_predictor = VulnerabilityPredictor()
+# Note: ML vulnerability predictor removed - was unused in main pipeline
 
 
 # ── Response Models ──────────────────────────────────────

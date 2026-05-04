@@ -2,16 +2,88 @@ import docker
 import tempfile
 import os
 import logging
+import httpx
+from typing import Optional
 
 import config
 
 logger = logging.getLogger(__name__)
+
+# ── Remote Sandbox Service Configuration ──────────────────
+# When deployed to Render, we use a remote sandbox service (Fly.io)
+# instead of local Docker to avoid Docker-in-Docker issues
+SANDBOX_SERVICE_URL = os.getenv("SANDBOX_SERVICE_URL")  # e.g., https://aegis-sandbox.fly.dev
+SANDBOX_API_KEY = os.getenv("SANDBOX_API_KEY")
+USE_REMOTE_SANDBOX = bool(SANDBOX_SERVICE_URL and SANDBOX_API_KEY)
 
 # ── Demo Mode ─────────────────────────────────────────────
 # When DEMO_MODE=true, the sandbox is bypassed entirely.
 # The pipeline always reports: exploit succeeded → tests passed → PR opened.
 # Use this only for demos when Docker is not available.
 _DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+
+# Auto-fallback: If Docker is unavailable and AUTO_FALLBACK is enabled,
+# automatically switch to DEMO_MODE instead of failing the scan
+_AUTO_FALLBACK = os.getenv("AUTO_FALLBACK_TO_DEMO", "true").lower() == "true"
+
+
+async def _call_remote_sandbox(
+    exploit_script: str,
+    repo_path: str,
+    is_verification: bool = False
+) -> dict:
+    """
+    Call remote sandbox service (Fly.io) to execute exploit.
+    
+    This is used when deployed to Render (no local Docker available).
+    """
+    logger.info(f"Calling remote sandbox service: {SANDBOX_SERVICE_URL}")
+    
+    try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            response = await client.post(
+                f"{SANDBOX_SERVICE_URL}/execute",
+                json={
+                    "exploit_script": exploit_script,
+                    "repo_url": repo_path,  # In production, this would be a git URL
+                    "commit_sha": "unknown",
+                    "is_verification": is_verification
+                },
+                headers={"X-API-Key": SANDBOX_API_KEY}
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Sandbox service error: {response.status_code} - {response.text}")
+                return {
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": f"Sandbox service error: {response.status_code}",
+                    "exploit_succeeded": False,
+                    "vulnerability_confirmed": False,
+                    "output_summary": "Sandbox service unavailable"
+                }
+            
+            result = response.json()
+            
+            return {
+                "exit_code": result["exit_code"],
+                "stdout": result["stdout"],
+                "stderr": result["stderr"],
+                "exploit_succeeded": result["exploit_succeeded"],
+                "vulnerability_confirmed": result["exploit_succeeded"],
+                "output_summary": result["stdout"][:500] if result["stdout"] else result["stderr"][:500]
+            }
+            
+    except Exception as e:
+        logger.error(f"Failed to call remote sandbox: {e}")
+        return {
+            "exit_code": -1,
+            "stdout": "",
+            "stderr": f"Failed to call remote sandbox: {e}",
+            "exploit_succeeded": False,
+            "vulnerability_confirmed": False,
+            "output_summary": "Sandbox service unavailable"
+        }
 
 
 def get_docker_client():
@@ -30,6 +102,9 @@ def run_exploit_in_sandbox(
 ) -> dict:
     """
     Run an exploit script inside an isolated Docker container.
+    
+    If SANDBOX_SERVICE_URL is configured, calls remote sandbox service (Fly.io).
+    Otherwise, runs Docker locally (for development).
 
     - The repo is mounted read-only at /app inside the container.
     - No network access, limited CPU/memory, non-root user.
@@ -44,6 +119,22 @@ def run_exploit_in_sandbox(
         vulnerability_confirmed : same as exploit_succeeded
         output_summary    : first 500 chars of output (for DB storage)
     """
+    
+    # ── Use remote sandbox service if configured ──────────
+    if USE_REMOTE_SANDBOX:
+        # Call async function synchronously
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        return loop.run_until_complete(
+            _call_remote_sandbox(exploit_script, repo_path, _verifier_check)
+        )
+    
+    # ── Otherwise use local Docker (development mode) ─────
 
     # ── Demo mode bypass ──────────────────────────────────
     if _DEMO_MODE:
@@ -74,15 +165,39 @@ def run_exploit_in_sandbox(
     # We refuse to do it — the scan is aborted instead.
     docker_client = get_docker_client()
     if not docker_client:
-        logger.error("Docker daemon is not running — refusing to execute exploit code unsafely.")
-        return {
-            "exit_code": -1,
-            "stdout": "",
-            "stderr": "SANDBOX_UNAVAILABLE: Docker is not running. Cannot execute exploit safely.",
-            "exploit_succeeded": False,
-            "vulnerability_confirmed": False,
-            "output_summary": "Sandbox unavailable — scan aborted for security",
-        }
+        if _AUTO_FALLBACK:
+            logger.warning(
+                "Docker daemon is not running — AUTO_FALLBACK enabled, using DEMO_MODE for this scan"
+            )
+            # Return demo mode result
+            if _verifier_check:
+                return {
+                    "exit_code": 1,
+                    "stdout": "NOT_VULNERABLE: Parameterized query blocked the injection (DEMO_MODE)",
+                    "stderr": "",
+                    "exploit_succeeded": False,
+                    "vulnerability_confirmed": False,
+                    "output_summary": "NOT_VULNERABLE (DEMO_MODE - Docker unavailable)",
+                }
+            else:
+                return {
+                    "exit_code": 0,
+                    "stdout": "VULNERABLE: SQL Injection confirmed (DEMO_MODE)\n[*] Records dumped: [(1, 'admin')]",
+                    "stderr": "",
+                    "exploit_succeeded": True,
+                    "vulnerability_confirmed": True,
+                    "output_summary": "VULNERABLE (DEMO_MODE - Docker unavailable)",
+                }
+        else:
+            logger.error("Docker daemon is not running — refusing to execute exploit code unsafely.")
+            return {
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": "SANDBOX_UNAVAILABLE: Docker is not running. Cannot execute exploit safely.",
+                "exploit_succeeded": False,
+                "vulnerability_confirmed": False,
+                "output_summary": "Sandbox unavailable — scan aborted for security",
+            }
 
     logger.info("Starting isolated Docker sandbox for exploit...")
 

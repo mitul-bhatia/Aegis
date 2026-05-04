@@ -117,7 +117,7 @@ Output a JSON object with: security_domains, scan_priority, analysis_brief, skip
         response = client.chat.completions.create(
             model=config.HACKER_MODEL,
             max_tokens=300,  # triage output is small
-            timeout=15,      # fast timeout — triage must not slow the pipeline
+            timeout=60,      # increased timeout for reliability (was 15s)
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": TRIAGE_SYSTEM_PROMPT},

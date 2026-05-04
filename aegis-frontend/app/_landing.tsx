@@ -12,32 +12,32 @@ const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || "";
 // ── Data ────────────────────────────────────────────────────
 const AGENTS = [
   {
-    id: "A", color: "var(--red)", label: "The Finder",
-    role: "Exploit Generation",
-    icon: "⚡",
-    desc: "Analyzes every commit diff using Semgrep + RAG semantic search. Identifies SQL injection, XSS, path traversal, and 40+ CVE patterns — ranked by severity.",
-    model: "llama-3.3-70b-versatile + Semgrep",
+    id: "1", color: "var(--agent-finder)", label: "The Finder",
+    role: "Vulnerability Discovery",
+    icon: "🔍",
+    desc: "Analyzes commit diffs using Semgrep + RAG + AST parsing. Identifies SQL injection, XSS, command injection, and 40+ vulnerability patterns — ranked by CVSS severity.",
+    model: "llama-3.3-70b-versatile (GROQ)",
   },
   {
-    id: "B", color: "var(--blue)", label: "The Engineer",
+    id: "2", color: "var(--red)", label: "The Exploiter",
+    role: "Proof-of-Concept Generation",
+    icon: "💥",
+    desc: "Generates real exploit scripts and runs them in an isolated Docker sandbox (no network, 256MB RAM, 30s timeout). Only confirmed exploits proceed to patching.",
+    model: "llama-3.3-70b-versatile (GROQ)",
+  },
+  {
+    id: "3", color: "var(--blue)", label: "The Engineer",
     role: "Secure Patch Generation",
-    icon: "⚙",
-    desc: "Given a confirmed exploit, rewrites the vulnerable section using CWE-specific fix patterns. Respects code style, generates test cases, retries up to 3×.",
-    model: "devstral-small-2505",
+    icon: "🔧",
+    desc: "Creates secure patches using CWE-specific fix patterns. Generates test suites, respects code style, and retries up to 3× with LLM feedback on failures.",
+    model: "devstral-small-2505 (Mistral)",
   },
   {
-    id: "C", color: "var(--amber)", label: "The Verifier",
-    role: "Patch Validation Gate",
-    icon: "✓",
-    desc: "Runs the full test suite, re-executes the original exploit against patched code, and scans for regressions. The final quality gate before any PR is opened.",
-    model: "llama-3.3-70b-versatile + Sandbox",
-  },
-  {
-    id: "D", color: "var(--agent-finder)", label: "The Exploiter",
-    role: "Sandbox Proof-of-Concept",
-    icon: "◎",
-    desc: "Generates and runs a real exploit script in an isolated Docker sandbox — no network, 256MB cap. If it can't crash your app, it's not a real vulnerability.",
-    model: "llama-3.3-70b-versatile + Docker",
+    id: "4", color: "var(--agent-verifier)", label: "The Verifier",
+    role: "Patch Validation",
+    icon: "✅",
+    desc: "Runs test suites in Docker sandbox, re-executes exploits on patched code, and scans for regressions. Final quality gate before PR creation.",
+    model: "Reviewer LLM + Docker Sandbox",
   },
 ];
 
@@ -51,17 +51,17 @@ const PIPELINE_NODES = [
 ];
 
 const STATS = [
-  { num: "86", suffix: "%", label: "False Positive Rate (Industry Baseline)", bg: "!" },
-  { num: "50", suffix: "%+", label: "Target TP Rate (Post Fine-Tune)", bg: "✓" },
-  { num: "3", suffix: "", label: "Max Retry Attempts Before Escalation", bg: "#" },
-  { num: "$10", suffix: "", label: "Hard Cost Budget Per Commit", bg: "$" },
+  { num: "7", suffix: "", label: "Specialized AI Agents", bg: "🤖" },
+  { num: "3", suffix: "", label: "Max Patch Retry Attempts", bg: "#" },
+  { num: "2-5", suffix: "m", label: "Average Pipeline Time", bg: "⏱" },
+  { num: "6", suffix: "", label: "Docker Security Layers", bg: "🔒" },
 ];
 
 const HERO_METRICS = [
-  { num: "71", suffix: "%", label: "Patch Correctness (AIxCC)" },
-  { num: "45", suffix: "m", label: "Avg Remediation Time" },
-  { num: "$152", suffix: "", label: "Cost Per Task" },
-  { num: "54M", suffix: "", label: "Lines of Code Processed" },
+  { num: "88", suffix: "%", label: "Research Implementation" },
+  { num: "2-5", suffix: "m", label: "Avg Remediation Time" },
+  { num: "200", suffix: "+", label: "Features Implemented" },
+  { num: "10", suffix: "x", label: "Faster Than GPT-4" },
 ];
 
 const STACK = [

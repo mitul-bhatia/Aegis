@@ -1,0 +1,27 @@
+# Fly.io configuration for Aegis Sandbox Service
+
+app = "aegis-sandbox"
+primary_region = "sjc"  # San Jose - change to your preferred region
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0  # Scale to zero when idle (free tier)
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+# Mount Docker socket for container execution
+[[mounts]]
+  source = "docker_socket"
+  destination = "/var/run/docker.sock"

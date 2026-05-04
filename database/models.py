@@ -70,12 +70,21 @@ class Repo(Base):
 # ── Scan ──────────────────────────────────────────────────
 class Scan(Base):
     __tablename__ = "scans"
+    
+    # Add indexes for common query patterns
+    __table_args__ = (
+        # Single column indexes
+        # repo_id already has index=True in Column definition
+        # status index for filtering by scan status
+        # created_at for sorting and time-based queries
+        # commit_sha for duplicate detection
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     repo_id = Column(Integer, ForeignKey("repos.id"), nullable=False, index=True)
-    commit_sha = Column(String(40), nullable=False)
+    commit_sha = Column(String(40), nullable=False, index=True)  # Added index for duplicate detection
     branch = Column(String(255), default="main")
-    status = Column(String(50), default=ScanStatus.QUEUED.value)
+    status = Column(String(50), default=ScanStatus.QUEUED.value, index=True)  # Added index for filtering
 
     # Results (populated as the pipeline progresses)
     vulnerability_type = Column(String(100), nullable=True)

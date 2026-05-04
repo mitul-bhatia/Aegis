@@ -36,9 +36,9 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 HACKER_MODEL  = os.getenv("HACKER_MODEL",  "llama-3.3-70b-versatile")
 HACKER_PROVIDER = "groq"   # groq | mistral (GROQ is 10x faster!)
 
-# Agent B (Engineer): Devstral — frontier agentic coding model for quality patches
-ENGINEER_MODEL       = os.getenv("ENGINEER_MODEL",       "devstral-small-2505")
-ENGINEER_RETRY_MODEL = os.getenv("ENGINEER_RETRY_MODEL", "devstral-2512")  # larger model for retries
+# Agent B (Engineer): Codestral — frontier agentic coding model for quality patches
+ENGINEER_MODEL       = os.getenv("ENGINEER_MODEL",       "codestral-latest")
+ENGINEER_RETRY_MODEL = os.getenv("ENGINEER_RETRY_MODEL", "mistral-large-latest")  # larger model for retries
 ENGINEER_PROVIDER = "mistral"
 
 # ── Server Settings ───────────────────────────────────────
@@ -67,8 +67,8 @@ HACKER_MAX_TOKENS = 4000      # Max output tokens for exploit generation
 ENGINEER_MAX_TOKENS = 3000    # Max output tokens for patch generation
 
 # ── LLM Timeouts (ms) ─────────────────────────────────────
-HACKER_TIMEOUT_MS  = int(os.getenv("HACKER_TIMEOUT_MS",  "45000"))  # 45s for Finder/Hacker
-ENGINEER_TIMEOUT_MS = int(os.getenv("ENGINEER_TIMEOUT_MS", "90000"))  # 90s for Engineer (large output)
+HACKER_TIMEOUT_MS  = int(os.getenv("HACKER_TIMEOUT_MS",  "120000"))  # 120s for Finder/Hacker (increased from 45s)
+ENGINEER_TIMEOUT_MS = int(os.getenv("ENGINEER_TIMEOUT_MS", "180000"))  # 180s for Engineer (increased from 90s)
 
 # ── RAG Settings ──────────────────────────────────────────
 RAG_TOP_K = 5                 # Number of related files to retrieve
