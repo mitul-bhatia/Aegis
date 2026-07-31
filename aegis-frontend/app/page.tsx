@@ -17,9 +17,23 @@ export default function LandingPage() {
     api.getMe().then((user) => { if (user) router.replace("/dashboard"); });
   }, [router]);
 
-  function handleLogin() {
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,write:repo_hook&redirect_uri=${redirectUri}`;
+  async function handleLogin() {
+    if (GITHUB_CLIENT_ID) {
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,write:repo_hook&redirect_uri=${redirectUri}`;
+    } else {
+      try {
+        const user = await api.loginDemo();
+        if (typeof window !== "undefined") {
+          localStorage.setItem("aegis_user_id", String(user.id));
+          localStorage.setItem("aegis_username", user.github_username);
+          localStorage.setItem("aegis_avatar", user.github_avatar_url);
+        }
+      } catch (e) {
+        console.warn("Demo login fallback:", e);
+      }
+      router.push("/dashboard");
+    }
   }
 
   return (

@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://aegis-backend-kiw7.onrender.com";
 // All API calls go through /api/v1/ for versioning
 // In the browser, use a relative path so requests proxy through Next.js (avoids CORS).
 // On the server (SSR), use the full backend URL.
@@ -28,6 +28,20 @@ export const api = {
       throw new Error(err.detail || "OAuth failed");
     }
     return res.json() as Promise<UserInfo>;
+  },
+
+  /** Demo Mode login when OAuth Client ID is not configured. */
+  async loginDemo() {
+    const res = await fetch(`${API_V1}/auth/demo`, { ...OPTS, method: "POST" }).catch(() => null);
+    if (res && res.ok) {
+      return res.json() as Promise<UserInfo>;
+    }
+    return {
+      id: 1,
+      github_id: 999999,
+      github_username: "demo-user",
+      github_avatar_url: "https://avatars.githubusercontent.com/u/999999?v=4",
+    };
   },
 
   /**

@@ -198,3 +198,36 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         github_username=user.github_username,
         github_avatar_url=user.github_avatar_url,
     )
+
+
+@router.post("/demo", response_model=UserResponse)
+def demo_login(response: Response, db: Session = Depends(get_db)):
+    """Instant login endpoint for Demo Mode."""
+    user = db.query(User).filter(User.github_username == "demo-user").first()
+    if not user:
+        user = User(
+            github_id=999999,
+            github_username="demo-user",
+            github_avatar_url="https://avatars.githubusercontent.com/u/999999?v=4",
+            github_token=encrypt_token("demo_token"),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    response.set_cookie(
+        key="aegis_session",
+        value=str(user.id),
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400 * 7,
+        path="/",
+    )
+    return UserResponse(
+        id=user.id,
+        github_id=user.github_id,
+        github_username=user.github_username,
+        github_avatar_url=user.github_avatar_url,
+    )
+
