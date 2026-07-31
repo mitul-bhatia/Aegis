@@ -1,65 +1,105 @@
-# 🛡️ Aegis - AI-Powered Security Scanner
+<div align="center">
 
-Autonomous security system that finds vulnerabilities, writes exploits to verify them, generates patches, and creates pull requests automatically.
+# 🛡️ Aegis — Autonomous Security Remediation System
 
-## 🎯 What It Does
+<p align="center">
+  <strong>An autonomous 7-agent AI swarm that detects, proves, patches, and verifies security vulnerabilities in code, generating automated Pull Requests.</strong>
+</p>
 
-1. **Scans** your code with Semgrep
-2. **Verifies** vulnerabilities by writing and executing exploits
-3. **Generates** patches using AI
-4. **Tests** patches to ensure they work
-5. **Creates** pull requests automatically
+[![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://aegis-frontend-zeta.vercel.app)
+[![Render](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://aegis-backend-kiw7.onrender.com/health)
+[![Supabase](https://img.shields.io/badge/Database-Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Python](https://img.shields.io/badge/Python-3.11.9-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![License](https://img.shields.io/badge/License-MIT-blue.style=for-the-badge)](LICENSE)
 
-## 🏗️ Architecture
+[🌐 Live Demo](https://aegis-frontend-zeta.vercel.app) • [🔌 Live API Health](https://aegis-backend-kiw7.onrender.com/health) • [📖 Architecture Docs](docs/architecture.md)
+
+</div>
+
+---
+
+## 🚀 Overview
+
+**Aegis** is an autonomous security system inspired by DARPA AIxCC research. When code is pushed or a scan is triggered, Aegis deploys a specialized multi-agent AI pipeline to scan the codebase, isolate vulnerability contexts with RAG, synthesize exploit verification payloads, generate robust code patches, and automatically submit Pull Requests to your repository.
+
+---
+
+## 🌟 Live Demo & Deployments
+
+- **Frontend App (Next.js 14 / Vercel)**: [https://aegis-frontend-zeta.vercel.app](https://aegis-frontend-zeta.vercel.app)
+- **Backend API (FastAPI / Render)**: [https://aegis-backend-kiw7.onrender.com](https://aegis-backend-kiw7.onrender.com)
+- **PostgreSQL Database (Supabase)**: `db.htlokyrjfhbyevmozuon.supabase.co`
+
+---
+
+## 🏗️ System Architecture
 
 ```
-GitHub Webhook → Render Backend → Semgrep Scan → AI Agents → Fly.io Sandbox → PR Creation
+                               ┌──────────────────────────────────────────────┐
+                               │             GitHub Webhook / User            │
+                               └──────────────────────┬───────────────────────┘
+                                                      │
+                                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Vercel Edge Network (Frontend)                                                                        │
+│  └─ Next.js 14 App Router, Cyberpunk Security Dashboard, SSE Real-Time Event Stream                   │
+└─────────────────────────────────────────────┬───────────────────────────────────────────────────────────┘
+                                              │ HTTP REST API / SSE
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Render Free Web Service (Backend API)                                                                  │
+│  ├─ FastAPI (Python 3.11.9)                                                                             │
+│  ├─ Multi-Agent Orchestrator (LangGraph)                                                                │
+│  ├─ RAG Vector Search & Chunking Engine (ChromaDB)                                                      │
+│  └─ Static Analysis Engine (Semgrep)                                                                    │
+└──────────────┬──────────────────────────────┬────────────────────────────────┬──────────────────────────┘
+               │                              │                                │
+               ▼                              ▼                                ▼
+┌──────────────────────────────┐ ┌──────────────────────────────┐ ┌──────────────────────────────┐
+│  Supabase PostgreSQL         │ │  AI Models                   │ │  GitHub API                  │
+│  (Database & State Storage)  │ │  (Mistral AI + GROQ)        │ │  (Automated PR Creation)     │
+└──────────────────────────────┘ └──────────────────────────────┘ └──────────────────────────────┘
 ```
 
-**Render (Main App - FREE):**
-- FastAPI backend
-- PostgreSQL database
-- Next.js frontend
-- AI agents (Mistral/GROQ)
+---
 
-**Fly.io (Sandbox - FREE):**
-- Docker exploit execution
-- Isolated containers
-- Patch verification
+## 🤖 The 7-Agent AI Swarm
 
-## 🚀 Quick Start
+| Agent | Role | AI Model | Function |
+| :--- | :--- | :--- | :--- |
+| **01. Triage Agent** | Severity Filter | `llama-3.3-70b-versatile` | Filters false positives and prioritizes critical CVEs/vulnerabilities. |
+| **02. Finder Agent** | Context Extractor | `codestral-latest` | Uses RAG AST function chunking to extract full vulnerability contexts. |
+| **03. Exploiter Agent** | Proof-of-Concept | `llama-3.3-70b-versatile` | Writes executable exploit scripts to prove vulnerability viability. |
+| **04. Engineer Agent** | Patch Synthesizer | `codestral-latest` | Generates clean, minimal security fix patches for the code. |
+| **05. Safety Validator** | Regression Guard | `mistral-large-latest` | Checks patch logic to ensure zero breaking changes or regressions. |
+| **06. Approval Gate** | Policy Enforcer | Rule-Based Engine | Validates repository safety policies and human authorization gates. |
+| **07. PR Creator** | Automated Delivery | GitHub REST API | Automatically opens clean GitHub Pull Requests with detailed fix reports. |
+
+---
+
+## 💰 100% Free Production Hosting ($0/Month)
+
+Aegis is engineered to run on permanent $0 free tiers across modern cloud platforms:
+
+- **Frontend**: **Vercel** (Unlimited Next.js Hobby Tier)
+- **Backend API**: **Render** (750 free compute hours/month)
+- **Database**: **Supabase** (Serverless PostgreSQL)
+- **AI Models**: **Mistral AI** & **GROQ** (Free API Tier)
+
+---
+
+## ⚡ Quickstart & Local Development
 
 ### Prerequisites
-- GitHub account
-- Render account (free)
-- Fly.io account (free)
-- Mistral API key (free tier)
-- GROQ API key (free tier)
+- **Python 3.11+**
+- **Node.js 18+** & **npm**
 
-### Deploy in 30 Minutes
-
-**Full deployment guide:** See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-
-**Quick steps:**
-1. Deploy sandbox to Fly.io (10 min)
-2. Deploy main app to Render (15 min)
-3. Configure GitHub webhooks (5 min)
-
-## 💰 Cost
-
-**$0/month** (within free tiers)
-
-- Render: 750 hours/month free
-- Fly.io: 3 VMs × 256MB free
-- Database: Free for 90 days, then $7/month
-
-## 🔧 Local Development
-
-### Setup
+### 1. Clone & Setup Backend
 ```bash
-# Clone repository
-git clone https://github.com/YOUR_USERNAME/aegis.git
-cd aegis
+git clone https://github.com/mitul-bhatia/Aegis.git
+cd Aegis
 
 # Create virtual environment
 python3 -m venv .venv
@@ -68,129 +108,75 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy environment variables
+# Configure environment variables
 cp .env.example .env
-# Edit .env with your API keys
 
-# Start backend
+# Start FastAPI server
 python main.py
+```
 
-# Start frontend (in another terminal)
+### 2. Setup Frontend
+```bash
 cd aegis-frontend
 npm install
 npm run dev
 ```
-
-### Run a Scan
-```bash
-# Trigger scan via API
-curl -X POST http://localhost:8000/api/v1/scans \
-  -H "Content-Type: application/json" \
-  -d '{
-    "repo_url": "https://github.com/user/repo",
-    "branch": "main"
-  }'
-```
-
-## 📊 Features
-
-### Core Features
-- ✅ Automated vulnerability scanning (Semgrep)
-- ✅ AI-powered exploit generation
-- ✅ Isolated exploit execution (Docker)
-- ✅ Automatic patch generation
-- ✅ Patch verification
-- ✅ Pull request creation
-- ✅ GitHub webhook integration
-
-### Advanced Features
-- ✅ Multi-agent AI system (Finder, Exploiter, Engineer, Reviewer)
-- ✅ RAG-based context retrieval
-- ✅ Intelligent scheduling
-- ✅ Analytics dashboard
-- ✅ Real-time scan updates (SSE)
-- ✅ Retry logic with exponential backoff
-- ✅ Rate limit handling
-- ✅ Graceful degradation
-
-## 🔒 Security
-
-### Sandbox Isolation
-- No network access
-- Memory limits (256MB)
-- CPU limits (50%)
-- Timeout protection (60s)
-- Non-root user
-- All capabilities dropped
-
-### API Security
-- API key authentication
-- GitHub webhook signature verification
-- Rate limiting
-- Input validation
-
-## 📖 Documentation
-
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Deploy to Render + Fly.io
-- [Architecture](docs/architecture.md) - System design
-- [API Documentation](docs/api.md) - REST API reference
-- [Agents](docs/agents.md) - AI agent system
-- [Pipeline](docs/pipeline.md) - Scan pipeline flow
-
-## 🛠️ Tech Stack
-
-**Backend:**
-- FastAPI (Python)
-- PostgreSQL
-- Redis (optional)
-- Docker
-
-**Frontend:**
-- Next.js 14
-- React
-- TailwindCSS
-- shadcn/ui
-
-**AI:**
-- Mistral AI (code generation)
-- GROQ (fast inference)
-- ChromaDB (vector store)
-- LangGraph (agent orchestration)
-
-**Security:**
-- Semgrep (static analysis)
-- Docker (sandboxing)
-
-## 📈 Roadmap
-
-- [ ] Support for more languages (currently Python-focused)
-- [ ] Custom vulnerability rules
-- [ ] Slack/Discord notifications
-- [ ] PDF report generation
-- [ ] Multi-repo dashboard
-- [ ] Advanced analytics
-- [ ] CI/CD integration (GitHub Actions, GitLab CI)
-
-## 🤝 Contributing
-
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details
-
-## 🙏 Acknowledgments
-
-- Semgrep for static analysis
-- Mistral AI for code generation
-- GROQ for fast inference
-- Render and Fly.io for free hosting
-
-## 📞 Support
-
-- 🐛 Issues: [GitHub Issues](https://github.com/YOUR_USERNAME/aegis/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/YOUR_USERNAME/aegis/discussions)
+Open [http://localhost:3000](http://localhost:3000) to view the local dashboard.
 
 ---
 
-**Built with ❤️ for the security community**
+## ⚙️ Environment Variables
+
+Copy `.env.example` to `.env` (or configure in Render/Vercel dashboards):
+
+```env
+# Database (Supabase / Postgres)
+DATABASE_URL=postgresql://postgres:password@db.xxxx.supabase.co:5432/postgres
+
+# AI Provider API Keys
+MISTRAL_API_KEY=your_mistral_api_key
+GROQ_API_KEY=your_groq_api_key
+
+# GitHub Token (for automatic PR creation)
+GITHUB_TOKEN=ghp_your_personal_access_token
+
+# Demo Mode (Set true to test without Docker/Sandbox)
+DEMO_MODE=true
+AUTO_FALLBACK_TO_DEMO=true
+
+# Server Configuration
+PORT=8000
+BACKEND_URL=https://aegis-backend-kiw7.onrender.com
+FRONTEND_URL=https://aegis-frontend-zeta.vercel.app
+```
+
+---
+
+## 📖 Documentation
+
+- 📐 **[Architecture Guide](docs/architecture.md)** — In-depth system design & sequence diagrams
+- 🤖 **[Agent Specs](docs/agents.md)** — Prompt designs & multi-agent graph flows
+- 🔌 **[API Reference](docs/api.md)** — FastAPI REST endpoints & SSE streaming specifications
+- 🚀 **[Deployment Guide](DEPLOYMENT_GUIDE.md)** — Step-by-step production deployment instructions
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please submit an issue or pull request to help improve Aegis.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+
+<div align="center">
+  <sub>Built with ❤️ for the AI Security Community</sub>
+</div>
