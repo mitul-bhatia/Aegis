@@ -18,7 +18,8 @@ export default function LandingPage() {
   }, [router]);
 
   async function handleLogin() {
-    if (GITHUB_CLIENT_ID) {
+    const isRealClientId = GITHUB_CLIENT_ID && GITHUB_CLIENT_ID.length >= 15 && !GITHUB_CLIENT_ID.includes("your_");
+    if (isRealClientId) {
       const redirectUri = `${window.location.origin}/auth/callback`;
       window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,write:repo_hook&redirect_uri=${redirectUri}`;
     } else {
