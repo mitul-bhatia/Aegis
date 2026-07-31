@@ -1,0 +1,8 @@
+node_modules
+.git
+.venv
+venv
+__pycache__
+aegis_vector_db
+repos
+.next
