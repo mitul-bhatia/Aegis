@@ -334,3 +334,58 @@ def remove_repo(repo_id: int, db: Session = Depends(get_db)):
 
     logger.info(f"Repo {repo.full_name} removed from monitoring")
     return {"message": f"Repo {repo.full_name} removed"}
+
+
+@router.post("/seed-demo")
+def seed_demo_repo(body: dict, db: Session = Depends(get_db)):
+    """
+    Seed a showcase demo repo with sample vulnerability scan history
+    so recruiters or visitors can view an active dashboard instantly.
+    """
+    from database.models import Scan, ScanStatus
+
+    user_id = body.get("user_id", 1)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    demo_repo = Repo(
+        user_id=user.id,
+        full_name="mitul-bhatia/vulnerable-python-app",
+        webhook_id=999999,
+        is_indexed=True,
+        status="monitoring",
+    )
+    db.add(demo_repo)
+    db.commit()
+    db.refresh(demo_repo)
+
+    scan1 = Scan(
+        repo_id=demo_repo.id,
+        commit_sha="a7b8c9d01234567890abcdef1234567890abcdef",
+        branch="main",
+        status=ScanStatus.FIXED.value,
+        vulnerability_type="SQL Injection (CWE-89)",
+        severity="HIGH",
+        vulnerable_file="routes/users.py",
+        exploit_output="[+] PoC EXPLOIT SUCCESSFUL: Injected payload returned database credentials",
+        original_code="""query = f"SELECT * FROM users WHERE username = '{username}'"\ncursor.execute(query)""",
+        patch_diff="""- query = f"SELECT * FROM users WHERE username = '{username}'"
++ query = "SELECT * FROM users WHERE username = :username"
++ cursor.execute(query, {"username": username})""",
+        pr_url="https://github.com/mitul-bhatia/Aegis/pull/1",
+    )
+    scan2 = Scan(
+        repo_id=demo_repo.id,
+        commit_sha="e5f6a7b81234567890abcdef1234567890abcdef",
+        branch="main",
+        status=ScanStatus.CLEAN.value,
+        vulnerability_type=None,
+        severity=None,
+        vulnerable_file=None,
+    )
+    db.add_all([scan1, scan2])
+    db.commit()
+
+    return {"message": "Demo repo & scan history seeded successfully", "repo_id": demo_repo.id}
+

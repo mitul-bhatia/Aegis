@@ -84,6 +84,21 @@ export const api = {
     return res.json();
   },
 
+  async seedDemoRepo(userId: number) {
+    const res = await fetch(`${API_V1}/repos/seed-demo`, {
+      ...OPTS,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Failed to seed demo repo");
+    }
+    return res.json();
+  },
+
+
   async listRepos(userId: number, page = 1, perPage = 20): Promise<PaginatedResponse<RepoInfo>> {
     const params = new URLSearchParams({ user_id: String(userId), page: String(page), per_page: String(perPage) });
     const res = await fetch(`${API_V1}/repos?${params}`, OPTS);

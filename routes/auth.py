@@ -203,6 +203,8 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 @router.post("/demo", response_model=UserResponse)
 def demo_login(response: Response, db: Session = Depends(get_db)):
     """Instant login endpoint for Demo Mode."""
+    from database.models import Repo, Scan, ScanStatus
+
     user = db.query(User).filter(User.github_username == "demo-user").first()
     if not user:
         user = User(
@@ -214,6 +216,48 @@ def demo_login(response: Response, db: Session = Depends(get_db)):
         db.add(user)
         db.commit()
         db.refresh(user)
+
+    # Automatically seed showcase demo repository & scan history if none exist
+    existing_repo = db.query(Repo).filter(Repo.user_id == user.id).first()
+    if not existing_repo:
+        demo_repo = Repo(
+            user_id=user.id,
+            full_name="mitul-bhatia/vulnerable-python-app",
+            webhook_id=999999,
+            is_indexed=True,
+            status="monitoring",
+        )
+        db.add(demo_repo)
+        db.commit()
+        db.refresh(demo_repo)
+
+        # Seed sample scan history for showcase
+        scan1 = Scan(
+            repo_id=demo_repo.id,
+            commit_sha="a7b8c9d01234567890abcdef1234567890abcdef",
+            branch="main",
+            status=ScanStatus.FIXED.value,
+            vulnerability_type="SQL Injection (CWE-89)",
+            severity="HIGH",
+            vulnerable_file="routes/users.py",
+            exploit_output="[+] PoC EXPLOIT SUCCESSFUL: Injected payload returned database credentials",
+            original_code="""query = f"SELECT * FROM users WHERE username = '{username}'"\ncursor.execute(query)""",
+            patch_diff="""- query = f"SELECT * FROM users WHERE username = '{username}'"
++ query = "SELECT * FROM users WHERE username = :username"
++ cursor.execute(query, {"username": username})""",
+            pr_url="https://github.com/mitul-bhatia/Aegis/pull/1",
+        )
+        scan2 = Scan(
+            repo_id=demo_repo.id,
+            commit_sha="e5f6a7b81234567890abcdef1234567890abcdef",
+            branch="main",
+            status=ScanStatus.CLEAN.value,
+            vulnerability_type=None,
+            severity=None,
+            vulnerable_file=None,
+        )
+        db.add_all([scan1, scan2])
+        db.commit()
 
     response.set_cookie(
         key="aegis_session",
@@ -230,4 +274,5 @@ def demo_login(response: Response, db: Session = Depends(get_db)):
         github_username=user.github_username,
         github_avatar_url=user.github_avatar_url,
     )
+
 

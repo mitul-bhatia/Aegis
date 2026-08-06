@@ -157,7 +157,44 @@ export function AddRepoModal({
             <Button type="submit" className="w-full" disabled={!url}>
               Start Monitoring
             </Button>
+
+            <div className="relative my-4 text-center text-xs text-muted-foreground before:absolute before:inset-0 before:top-1/2 before:border-t before:border-border">
+              <span className="relative bg-background px-2">OR QUICK ACTIONS</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href="https://github.com/apps/aegis-security/installations/new"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-xs font-mono text-foreground hover:bg-accent hover:text-accent-foreground text-center"
+              >
+                📦 Install GitHub App
+              </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setState("validating");
+                    await api.seedDemoRepo(userId);
+                    setState("complete");
+                    setTimeout(() => {
+                      setOpen(false);
+                      onSuccess();
+                      setState("idle");
+                    }, 1000);
+                  } catch (err: any) {
+                    setState("error");
+                    setError(err.message || "Failed to seed demo repo");
+                  }
+                }}
+                className="inline-flex items-center justify-center rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-mono text-green-400 hover:bg-green-500/20"
+              >
+                ⚡ Load Showcase Repo
+              </button>
+            </div>
           </form>
+
         ) : (
           <div className="space-y-6 py-4">
             {/* Progress steps */}

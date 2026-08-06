@@ -285,16 +285,47 @@ export default function DashboardPage() {
             </div>
             <ErrorBoundary fallbackTitle="Repos list failed to render">
               {repos.length === 0 ? (
-                <div onClick={() => setOpenAddRepo(true)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, border: "1px dashed var(--border)", padding: 40, cursor: "pointer", transition: "border-color 0.2s" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--green)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}>
-                  <div style={{ width: 40, height: 40, border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "var(--muted)" }}>+</div>
-                  <div style={{ textAlign: "center" }}>
-                    <p style={{ fontFamily: "var(--font-syne, sans-serif)", fontWeight: 600, fontSize: 14, marginBottom: 4 }}>No repos yet</p>
-                    <p style={{ fontFamily: "var(--font-share-tech-mono, monospace)", fontSize: 11, color: "var(--muted)" }}>Click "Monitor Repo" to get started</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div onClick={() => setOpenAddRepo(true)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, border: "1px dashed var(--border)", padding: 32, cursor: "pointer", transition: "border-color 0.2s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--green)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}>
+                    <div style={{ width: 40, height: 40, border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "var(--muted)" }}>+</div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontFamily: "var(--font-syne, sans-serif)", fontWeight: 600, fontSize: 14, marginBottom: 4 }}>No repos connected yet</p>
+                      <p style={{ fontFamily: "var(--font-share-tech-mono, monospace)", fontSize: 11, color: "var(--muted)" }}>Click to monitor a repository or install GitHub App</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        setLoading(true);
+                        await api.seedDemoRepo(userId);
+                        await fetchData();
+                      } catch (e) {
+                        console.error(e);
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    style={{
+                      fontFamily: "var(--font-share-tech-mono, monospace)",
+                      fontSize: 11,
+                      padding: "10px 16px",
+                      border: "1px solid var(--green)",
+                      background: "var(--green-dim)",
+                      color: "var(--green)",
+                      cursor: "pointer",
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      textAlign: "center",
+                      width: "100%",
+                      transition: "background 0.2s",
+                    }}>
+                    ⚡ Load Showcase Demo Repo
+                  </button>
                 </div>
               ) : (
+
                 <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {repos.map((repo) => (
                     <RepoCard key={repo.id} repo={repo} onDelete={async (id) => { await api.deleteRepo(id); await fetchData(); }} onTriggerScan={async (id) => { try { await api.triggerScan(id); setTimeout(fetchData, 2000); } catch (e) { console.error(e); } }} />
