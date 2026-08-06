@@ -43,5 +43,13 @@ langchain-core==0.3.29
 # Logging
 structlog==24.4.0
 
-# Job Queue (Optional - for advanced features)
+# Job Queue
 celery==5.4.0
+arq==0.26.1
+
+# Vector Database
+pgvector==0.3.6
+
+# JWT for GitHub App Auth
+pyjwt==2.10.1
+

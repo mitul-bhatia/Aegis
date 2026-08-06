@@ -1,6 +1,8 @@
 # Environment & secrets
 .env
+.env.production
 *.env
+
 
 # Python
 __pycache__/
@@ -43,3 +45,4 @@ Thumbs.db
 # Test artifacts
 test_repo/.git/
 .env
+.vercel

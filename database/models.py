@@ -43,6 +43,13 @@ class User(Base):
     github_username = Column(String(255), nullable=False)
     github_avatar_url = Column(String(500), default="")
     github_token = Column(String(255), nullable=False)  # Encrypted in production
+    github_installation_id = Column(Integer, nullable=True, index=True) # GitHub App installation ID
+    
+    # Global notification channels
+    slack_webhook_url = Column(String(500), nullable=True)
+    discord_webhook_url = Column(String(500), nullable=True)
+    email_alerts_enabled = Column(Boolean, default=True)
+    
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
@@ -56,18 +63,57 @@ class Repo(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     full_name = Column(String(255), nullable=False)  # e.g. "mitulbhatia/my-app"
+    installation_id = Column(Integer, nullable=True, index=True) # GitHub App installation ID for repo
     webhook_id = Column(Integer, nullable=True)       # GitHub webhook ID (for uninstall)
     is_indexed = Column(Boolean, default=False)        # RAG index complete?
     status = Column(String(50), default="setting_up")  # setting_up / monitoring / error
+    
+    # Per-repo notification overrides
+    slack_webhook_url = Column(String(500), nullable=True)
+    discord_webhook_url = Column(String(500), nullable=True)
+    
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
 
     # Relationships
     user = relationship("User", back_populates="repos")
     scans = relationship("Scan", back_populates="repo", cascade="all, delete-orphan")
     vuln_signatures = relationship("VulnSignature", back_populates="repo", cascade="all, delete-orphan")
+    embeddings = relationship("DocumentEmbedding", back_populates="repo", cascade="all, delete-orphan")
 
 
-# ── Scan ──────────────────────────────────────────────────
+# ── DocumentEmbedding (pgvector AST Store) ───────────────
+try:
+    from pgvector.sqlalchemy import Vector
+    HAS_PGVECTOR = True
+except ImportError:
+    HAS_PGVECTOR = False
+
+class DocumentEmbedding(Base):
+    """
+    Stores code AST function chunks and vector embeddings using Supabase pgvector.
+    Replaces ephemeral ChromaDB in production.
+    """
+    __tablename__ = "document_embeddings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    repo_id = Column(Integer, ForeignKey("repos.id"), nullable=False, index=True)
+    file_path = Column(String(500), nullable=False, index=True)
+    chunk_id = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    meta_json = Column(Text, nullable=True)  # Store JSON metadata (start_line, end_line, function_name)
+    
+    # 1536 or custom dimension embedding vector
+    if HAS_PGVECTOR:
+        embedding = Column(Vector(384))  # Default 384 for sentence-transformers/all-MiniLM-L6-v2 or Mistral
+    else:
+        embedding = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    repo = relationship("Repo", back_populates="embeddings")
+
 class Scan(Base):
     __tablename__ = "scans"
     

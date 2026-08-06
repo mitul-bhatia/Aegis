@@ -153,10 +153,20 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
         logger.info(f"Push received: {push_info['commit_sha'][:8]} on {push_info['repo_name']}")
         logger.info(f"Files changed: {push_info['files_changed']}")
         
-        # Run the pipeline in the background so we can respond to GitHub quickly
+        # Enqueue to Redis task queue if available, otherwise run in background task
+        if config.REDIS_URL:
+            try:
+                from worker import enqueue_scan_job
+                if enqueue_scan_job(push_info):
+                    return {"message": "Webhook received (enqueued to Redis queue)", "commit": push_info["commit_sha"][:8]}
+            except Exception as e:
+                logger.warning(f"Failed to enqueue to Redis worker ({e}) — falling back to BackgroundTasks")
+
+        # Fallback to local background tasks
         background_tasks.add_task(run_aegis_pipeline, push_info)
         
         return {"message": "Webhook received", "commit": push_info["commit_sha"][:8]}
+
 
     # Handle pull_request events
     elif event_type == "pull_request":

@@ -25,9 +25,20 @@ GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
 # Then paste it into your .env as FERNET_KEY=<key>
 FERNET_KEY = os.getenv("FERNET_KEY", "")
 
+# ── GitHub App Settings (for production multi-tenant scanning) ───
+GITHUB_APP_ID = os.getenv("GITHUB_APP_ID", "")
+GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
+
+# ── Redis Task Queue (ARQ / Celery) ──────────────────────
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
+# ── Remote Docker Sandbox Daemon ─────────────────────────
+SANDBOX_DOCKER_HOST = os.getenv("SANDBOX_DOCKER_HOST", "")
+
 # ── GitHub OAuth (for multi-user sign-in) ─────────────────
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
+
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
