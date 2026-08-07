@@ -5,6 +5,7 @@ const nextConfig = {
   // Environment variables
   env: {
     NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://aegis-backend-kiw7.onrender.com',
+    NEXT_PUBLIC_GITHUB_CLIENT_ID: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || process.env.GITHUB_CLIENT_ID || 'Ov23li7vdknIS2ZtxxOH',
   },
   
   // Rewrites to proxy API requests directly to backend, avoiding CORS and cross-domain cookie issues

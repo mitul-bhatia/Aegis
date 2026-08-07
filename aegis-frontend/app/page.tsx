@@ -8,7 +8,7 @@ import { SwarmTerminal } from "@/components/SwarmTerminal";
 import { api } from "@/lib/api";
 import { AGENTS, PIPELINE_NODES, STATS, HERO_METRICS, STACK, Mono, PipelineDemo } from "./_landing";
 
-const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || "";
+const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || process.env.GITHUB_CLIENT_ID || "Ov23li7vdknIS2ZtxxOH";
 
 export default function LandingPage() {
   const router = useRouter();
