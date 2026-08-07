@@ -4,7 +4,27 @@ const nextConfig = {
   
   // Environment variables
   env: {
-    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000',
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://aegis-backend-kiw7.onrender.com',
+  },
+  
+  // Rewrites to proxy API requests directly to backend, avoiding CORS and cross-domain cookie issues
+  async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://aegis-backend-kiw7.onrender.com';
+    const cleanUrl = backendUrl.replace(/\/$/, '');
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: `${cleanUrl}/api/v1/:path*`,
+      },
+      {
+        source: '/webhook/:path*',
+        destination: `${cleanUrl}/webhook/:path*`,
+      },
+      {
+        source: '/health',
+        destination: `${cleanUrl}/health`,
+      },
+    ];
   },
   
   // Vercel-specific optimizations

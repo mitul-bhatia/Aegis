@@ -13,7 +13,7 @@ import logging
 from typing import List, Dict
 
 from groq import Groq
-from mistralai.client import Mistral
+from mistralai import Mistral
 from pydantic import ValidationError
 
 import config

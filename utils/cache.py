@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 try:
     import redis
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    if REDIS_URL.startswith("rediss://"):
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True, ssl_cert_reqs=None)
+    else:
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
     redis_client.ping()
     REDIS_AVAILABLE = True
     logger.info("Redis cache connected")
@@ -26,53 +29,67 @@ except Exception as e:
     logger.warning(f"Redis not available - caching disabled: {e}")
 
 
+import inspect
+
 def cache_result(key_prefix: str, ttl: int = 3600):
     """
-    Decorator to cache function results in Redis.
+    Decorator to cache function results in Redis (supports sync & async functions).
     
     Args:
         key_prefix: Prefix for cache key
         ttl: Time to live in seconds (default 1 hour)
-    
-    Example:
-        @cache_result("repo_scan", ttl=1800)
-        def get_repo_scans(repo_id):
-            return expensive_query(repo_id)
     """
     def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if not REDIS_AVAILABLE:
-                return func(*args, **kwargs)
-            
-            # Generate cache key from function args
-            cache_key = f"{key_prefix}:{func.__name__}:{str(args)}:{str(kwargs)}"
-            
-            try:
-                # Try to get from cache
-                cached = redis_client.get(cache_key)
-                if cached:
-                    logger.debug(f"Cache hit: {cache_key}")
-                    return json.loads(cached)
+        if inspect.iscoroutinefunction(func):
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                if not REDIS_AVAILABLE:
+                    return await func(*args, **kwargs)
                 
-                # Cache miss - execute function
-                result = func(*args, **kwargs)
+                cache_key = f"{key_prefix}:{func.__name__}:{str(args)}:{str(kwargs)}"
+                try:
+                    cached = redis_client.get(cache_key)
+                    if cached:
+                        logger.debug(f"Cache hit: {cache_key}")
+                        return json.loads(cached)
+                    
+                    result = await func(*args, **kwargs)
+                    redis_client.setex(
+                        cache_key,
+                        ttl,
+                        json.dumps(result, default=str)
+                    )
+                    logger.debug(f"Cache set: {cache_key}")
+                    return result
+                except Exception as e:
+                    logger.warning(f"Cache error: {e}")
+                    return await func(*args, **kwargs)
+            return async_wrapper
+        else:
+            @wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                if not REDIS_AVAILABLE:
+                    return func(*args, **kwargs)
                 
-                # Store in cache
-                redis_client.setex(
-                    cache_key,
-                    ttl,
-                    json.dumps(result, default=str)
-                )
-                logger.debug(f"Cache set: {cache_key}")
-                
-                return result
-                
-            except Exception as e:
-                logger.warning(f"Cache error: {e}")
-                return func(*args, **kwargs)
-        
-        return wrapper
+                cache_key = f"{key_prefix}:{func.__name__}:{str(args)}:{str(kwargs)}"
+                try:
+                    cached = redis_client.get(cache_key)
+                    if cached:
+                        logger.debug(f"Cache hit: {cache_key}")
+                        return json.loads(cached)
+                    
+                    result = func(*args, **kwargs)
+                    redis_client.setex(
+                        cache_key,
+                        ttl,
+                        json.dumps(result, default=str)
+                    )
+                    logger.debug(f"Cache set: {cache_key}")
+                    return result
+                except Exception as e:
+                    logger.warning(f"Cache error: {e}")
+                    return func(*args, **kwargs)
+            return sync_wrapper
     return decorator
 
 

@@ -13,7 +13,7 @@ Output: JSON object with "patched_code" and "test_code" — validated with Pydan
 import json
 import logging
 
-from mistralai.client import Mistral
+from mistralai import Mistral
 from pydantic import ValidationError
 
 import config

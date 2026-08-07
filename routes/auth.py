@@ -124,17 +124,17 @@ def github_oauth_callback(
     db.commit()
     db.refresh(user)
 
-    # Step 4: Set an httpOnly session cookie with the user's DB id.
-    # httpOnly = JavaScript cannot read this cookie → XSS cannot steal it.
-    # secure=False for local dev (HTTP). Set to True in production (HTTPS).
-    # samesite="lax" prevents CSRF on cross-site navigations.
+    # Detect HTTPS / Proxy headers for cross-domain cookie security (Vercel <-> Render)
+    is_secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    samesite_setting = "none" if is_secure else "lax"
+
     response.set_cookie(
         key="aegis_session",
         value=str(user.id),
-        httponly=True,          # not readable by JavaScript
-        secure=False,           # set True in production with HTTPS
-        samesite="lax",
-        max_age=86400 * 7,      # 7 days
+        httponly=True,
+        secure=is_secure,
+        samesite=samesite_setting,
+        max_age=86400 * 7,
         path="/",
     )
 
@@ -149,12 +149,20 @@ def github_oauth_callback(
 @router.get("/me", response_model=UserResponse)
 def get_current_user(request: Request, db: Session = Depends(get_db)):
     """
-    Read the session cookie and return the logged-in user's info.
-    The frontend calls this on page load instead of reading localStorage.
-    Returns 401 if no valid session cookie exists.
+    Read the session cookie or authorization header and return the logged-in user's info.
+    Fallbacks to Authorization / X-Aegis-User-Id header if 3rd party cookies are blocked.
+    Returns 401 if no valid session exists.
     """
-    # Read the user id from the httpOnly cookie
+    # 1. Try reading the user id from httpOnly cookie
     user_id_str = request.cookies.get("aegis_session")
+
+    # 2. Fallback to Authorization header or X-Aegis-User-Id header
+    if not user_id_str:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            user_id_str = auth_header.replace("Bearer ", "").strip()
+        if not user_id_str:
+            user_id_str = request.headers.get("X-Aegis-User-Id")
 
     if not user_id_str:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -201,7 +209,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/demo", response_model=UserResponse)
-def demo_login(response: Response, db: Session = Depends(get_db)):
+def demo_login(request: Request, response: Response, db: Session = Depends(get_db)):
     """Instant login endpoint for Demo Mode."""
     from database.models import Repo, Scan, ScanStatus
 
@@ -259,12 +267,15 @@ def demo_login(response: Response, db: Session = Depends(get_db)):
         db.add_all([scan1, scan2])
         db.commit()
 
+    is_secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    samesite_setting = "none" if is_secure else "lax"
+
     response.set_cookie(
         key="aegis_session",
         value=str(user.id),
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=is_secure,
+        samesite=samesite_setting,
         max_age=86400 * 7,
         path="/",
     )

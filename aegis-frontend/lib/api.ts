@@ -1,15 +1,34 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://aegis-backend-kiw7.onrender.com";
 // All API calls go through /api/v1/ for versioning
-// In the browser, use a relative path so requests proxy through Next.js (avoids CORS).
-// On the server (SSR), use the full backend URL.
+// In the browser, use relative path /api/v1 (proxied by Next.js rewrites) or absolute URL as fallback.
 const API_V1 =
   typeof window !== "undefined"
     ? "/api/v1"
     : `${API_BASE}/api/v1`;
 
-// All fetch calls include credentials: "include" so the browser sends
-// the httpOnly session cookie automatically with every request.
-const OPTS: RequestInit = { credentials: "include" };
+/**
+ * Build request options with credentials and fallback Authorization headers from localStorage.
+ * Guarantees auth works even if modern browsers block 3rd-party cross-site cookies.
+ */
+function getOpts(customOpts: RequestInit = {}): RequestInit {
+  const headers: Record<string, string> = {
+    ...(customOpts.headers as Record<string, string> || {}),
+  };
+
+  if (typeof window !== "undefined") {
+    const userId = localStorage.getItem("aegis_user_id");
+    if (userId) {
+      headers["Authorization"] = `Bearer ${userId}`;
+      headers["X-Aegis-User-Id"] = userId;
+    }
+  }
+
+  return {
+    credentials: "include",
+    ...customOpts,
+    headers,
+  };
+}
 
 export const api = {
   // ── Auth ──────────────────────────────────────────────
@@ -17,53 +36,99 @@ export const api = {
   /** Exchange GitHub OAuth code for a session. Backend sets httpOnly cookie. */
   async exchangeGitHubCode(code: string) {
     const redirectUri = `${window.location.origin}/auth/callback`;
-    const res = await fetch(`${API_V1}/auth/github`, {
-      ...OPTS,
+    const res = await fetch(`${API_V1}/auth/github`, getOpts({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, redirect_uri: redirectUri }),
-    });
+    }));
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || "OAuth failed");
     }
-    return res.json() as Promise<UserInfo>;
+    const user = await res.json() as UserInfo;
+    if (typeof window !== "undefined" && user?.id) {
+      localStorage.setItem("aegis_user_id", String(user.id));
+      localStorage.setItem("aegis_username", user.github_username);
+      localStorage.setItem("aegis_avatar", user.github_avatar_url);
+    }
+    return user;
   },
 
   /** Demo Mode login when OAuth Client ID is not configured. */
   async loginDemo() {
-    const res = await fetch(`${API_V1}/auth/demo`, { ...OPTS, method: "POST" }).catch(() => null);
+    const res = await fetch(`${API_V1}/auth/demo`, getOpts({ method: "POST" })).catch(() => null);
     if (res && res.ok) {
-      return res.json() as Promise<UserInfo>;
+      const user = await res.json() as UserInfo;
+      if (typeof window !== "undefined" && user?.id) {
+        localStorage.setItem("aegis_user_id", String(user.id));
+        localStorage.setItem("aegis_username", user.github_username);
+        localStorage.setItem("aegis_avatar", user.github_avatar_url);
+      }
+      return user;
     }
-    return {
+    const fallbackUser: UserInfo = {
       id: 1,
       github_id: 999999,
       github_username: "demo-user",
       github_avatar_url: "https://avatars.githubusercontent.com/u/999999?v=4",
     };
+    if (typeof window !== "undefined") {
+      localStorage.setItem("aegis_user_id", "1");
+      localStorage.setItem("aegis_username", "demo-user");
+      localStorage.setItem("aegis_avatar", fallbackUser.github_avatar_url);
+    }
+    return fallbackUser;
   },
 
   /**
-   * Read the session cookie and return the current user.
+   * Read the session cookie / headers and return the current user.
    * Call this on every page load to check if the user is logged in.
    * Returns null if not authenticated (401).
    */
   async getMe(): Promise<UserInfo | null> {
-    const res = await fetch(`${API_V1}/auth/me`, OPTS);
-    if (res.status === 401) return null;
-    if (!res.ok) return null;
-    return res.json() as Promise<UserInfo>;
+    try {
+      const res = await fetch(`${API_V1}/auth/me`, getOpts());
+      if (res.ok) {
+        const user = await res.json() as UserInfo;
+        if (typeof window !== "undefined" && user?.id) {
+          localStorage.setItem("aegis_user_id", String(user.id));
+          localStorage.setItem("aegis_username", user.github_username);
+          localStorage.setItem("aegis_avatar", user.github_avatar_url);
+        }
+        return user;
+      }
+    } catch (e) {
+      console.warn("getMe failed:", e);
+    }
+
+    // Fallback: check localStorage for cached user session
+    if (typeof window !== "undefined") {
+      const cachedId = localStorage.getItem("aegis_user_id");
+      if (cachedId) {
+        try {
+          const user = await api.getUser(parseInt(cachedId, 10));
+          return user;
+        } catch (e) {
+          console.warn("getUser fallback failed:", e);
+        }
+      }
+    }
+    return null;
   },
 
-  /** Clear the session cookie on the backend. */
+  /** Clear the session cookie and localStorage. */
   async logout() {
-    await fetch(`${API_V1}/auth/logout`, { ...OPTS, method: "POST" });
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("aegis_user_id");
+      localStorage.removeItem("aegis_username");
+      localStorage.removeItem("aegis_avatar");
+    }
+    await fetch(`${API_V1}/auth/logout`, getOpts({ method: "POST" })).catch(() => null);
   },
 
   /** Get user by ID (kept for backwards compat). */
   async getUser(userId: number) {
-    const res = await fetch(`${API_V1}/auth/user/${userId}`, OPTS);
+    const res = await fetch(`${API_V1}/auth/user/${userId}`, getOpts());
     if (!res.ok) throw new Error("User not found");
     return res.json() as Promise<UserInfo>;
   },
@@ -71,12 +136,11 @@ export const api = {
   // ── Repos ─────────────────────────────────────────────
 
   async addRepo(userId: number, repoUrl: string) {
-    const res = await fetch(`${API_V1}/repos`, {
-      ...OPTS,
+    const res = await fetch(`${API_V1}/repos`, getOpts({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, repo_url: repoUrl }),
-    });
+    }));
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.detail || "Failed to add repo");
@@ -85,12 +149,11 @@ export const api = {
   },
 
   async seedDemoRepo(userId: number) {
-    const res = await fetch(`${API_V1}/repos/seed-demo`, {
-      ...OPTS,
+    const res = await fetch(`${API_V1}/repos/seed-demo`, getOpts({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId }),
-    });
+    }));
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.detail || "Failed to seed demo repo");
@@ -101,21 +164,20 @@ export const api = {
 
   async listRepos(userId: number, page = 1, perPage = 20): Promise<PaginatedResponse<RepoInfo>> {
     const params = new URLSearchParams({ user_id: String(userId), page: String(page), per_page: String(perPage) });
-    const res = await fetch(`${API_V1}/repos?${params}`, OPTS);
+    const res = await fetch(`${API_V1}/repos?${params}`, getOpts());
     return res.json();
   },
 
   async getRepo(repoId: number) {
-    const res = await fetch(`${API_V1}/repos/${repoId}`, OPTS);
+    const res = await fetch(`${API_V1}/repos/${repoId}`, getOpts());
     if (!res.ok) throw new Error("Repo not found");
     return res.json();
   },
 
   async deleteRepo(repoId: number) {
-    const res = await fetch(`${API_V1}/repos/${repoId}`, {
-      ...OPTS,
+    const res = await fetch(`${API_V1}/repos/${repoId}`, getOpts({
       method: "DELETE",
-    });
+    }));
     return res.json();
   },
 
@@ -124,21 +186,20 @@ export const api = {
   async listScans(repoId?: number, page = 1, perPage = 20): Promise<PaginatedResponse<ScanInfo>> {
     const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
     if (repoId) params.set("repo_id", String(repoId));
-    const res = await fetch(`${API_V1}/scans?${params}`, OPTS);
+    const res = await fetch(`${API_V1}/scans?${params}`, getOpts());
     return res.json();
   },
 
   async getScan(scanId: number) {
-    const res = await fetch(`${API_V1}/scans/${scanId}`, OPTS);
+    const res = await fetch(`${API_V1}/scans/${scanId}`, getOpts());
     if (!res.ok) throw new Error("Scan not found");
     return res.json();
   },
 
   async approveScan(scanId: number) {
-    const res = await fetch(`${API_V1}/scans/${scanId}/approve`, {
-      ...OPTS,
+    const res = await fetch(`${API_V1}/scans/${scanId}/approve`, getOpts({
       method: "POST",
-    });
+    }));
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || "Failed to approve scan");
@@ -147,10 +208,9 @@ export const api = {
   },
 
   async rejectScan(scanId: number, reason: string = "") {
-    const res = await fetch(`${API_V1}/scans/${scanId}/reject?reason=${encodeURIComponent(reason)}`, {
-      ...OPTS,
+    const res = await fetch(`${API_V1}/scans/${scanId}/reject?reason=${encodeURIComponent(reason)}`, getOpts({
       method: "POST",
-    });
+    }));
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || "Failed to reject scan");
@@ -168,7 +228,7 @@ export const api = {
 
     const res = await fetch(
       `${API_V1}/scans/trigger-direct?repo_id=${repoId}&commit_sha=${lastCommit}&branch=${lastBranch}`,
-      { ...OPTS, method: "POST" }
+      getOpts({ method: "POST" })
     );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -180,7 +240,7 @@ export const api = {
   // ── Stats ─────────────────────────────────────────────
 
   async getStats(userId: number): Promise<StatsInfo> {
-    const res = await fetch(`${API_V1}/stats?user_id=${userId}`, OPTS);
+    const res = await fetch(`${API_V1}/stats?user_id=${userId}`, getOpts());
     if (!res.ok) throw new Error("Failed to fetch stats");
     return res.json();
   },
@@ -188,25 +248,25 @@ export const api = {
   // ── Intelligence ──────────────────────────────────────
 
   async getRepoIntelligence(repoId: number): Promise<RepoIntelligence> {
-    const res = await fetch(`${API_V1}/intelligence/repo/${repoId}`, OPTS);
+    const res = await fetch(`${API_V1}/intelligence/repo/${repoId}`, getOpts());
     if (!res.ok) throw new Error("Failed to fetch repo intelligence");
     return res.json();
   },
 
   async getGlobalThreat(): Promise<GlobalThreat> {
-    const res = await fetch(`${API_V1}/intelligence/global`, OPTS);
+    const res = await fetch(`${API_V1}/intelligence/global`, getOpts());
     if (!res.ok) throw new Error("Failed to fetch global threat");
     return res.json();
   },
 
   async getAnalytics(userId: number, days = 30): Promise<AnalyticsData> {
-    const res = await fetch(`${API_V1}/intelligence/analytics?user_id=${userId}&days=${days}`, OPTS);
+    const res = await fetch(`${API_V1}/intelligence/analytics?user_id=${userId}&days=${days}`, getOpts());
     if (!res.ok) throw new Error("Failed to fetch analytics");
     return res.json() as Promise<AnalyticsData>;
   },
 
   async getScorecard(repoId: number): Promise<ScorecardData> {
-    const res = await fetch(`${API_V1}/intelligence/scorecard/${repoId}`, OPTS);
+    const res = await fetch(`${API_V1}/intelligence/scorecard/${repoId}`, getOpts());
     if (!res.ok) throw new Error("Failed to fetch scorecard");
     return res.json() as Promise<ScorecardData>;
   },
