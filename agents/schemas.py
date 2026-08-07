@@ -10,9 +10,8 @@ Why centralize?
 - Shared models (e.g. VulnerabilityFinding) used by multiple agents
 """
 
-from typing import List, Optional
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 # ── Agent 1: Finder ───────────────────────────────────────
 
@@ -26,8 +25,8 @@ class VulnerabilityFinding(BaseModel):
     relevant_code: str = Field(description="The vulnerable code snippet")
     confidence: str = Field(description="HIGH, MEDIUM, or LOW")
     # CVSS fields — populated after Finder returns, before pipeline continues
-    cvss_vector: Optional[str] = Field(default=None, description="CVSS 3.1 vector string")
-    cvss_score: Optional[float] = Field(default=None, description="Calculated CVSS base score 0.0-10.0")
+    cvss_vector: str | None = Field(default=None, description="CVSS 3.1 vector string")
+    cvss_score: float | None = Field(default=None, description="Calculated CVSS base score 0.0-10.0")
 
 
 # ── Agent 2: Exploiter ────────────────────────────────────
@@ -37,7 +36,7 @@ class ExploitResult(BaseModel):
     exploit_script: str = Field(description="Runnable Python exploit script")
     vulnerability_type: str = Field(description="Human-readable vuln name")
     reasoning: str = Field(description="Which model generated this")
-    files_analyzed: List[str] = Field(
+    files_analyzed: list[str] = Field(
         default_factory=list,
         description="Filenames from the diff that were analyzed",
     )
@@ -68,7 +67,7 @@ class ReviewerDiagnosis(BaseModel):
         description="Best technical approach to fix this correctly"
     )
     confidence: str = Field(description="HIGH, MEDIUM, or LOW")
-    test_issues: List[str] = Field(
+    test_issues: list[str] = Field(
         default_factory=list,
         description="Individual test failures explained in plain English",
     )

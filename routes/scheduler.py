@@ -9,6 +9,7 @@ Provides API endpoints to control autonomous scanning:
 """
 
 import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

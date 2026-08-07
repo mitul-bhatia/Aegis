@@ -17,12 +17,12 @@ Output: JSON object validated with Pydantic
 
 import json
 import logging
-from typing import List
 
 from groq import Groq
 from pydantic import ValidationError
 
 import config
+
 # Import the shared schema — defined once in agents/schemas.py
 from agents.schemas import ReviewerDiagnosis
 

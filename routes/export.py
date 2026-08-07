@@ -7,6 +7,7 @@ Currently supports SARIF 2.1.0 (GitHub Code Scanning compatible).
 
 import json
 import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 

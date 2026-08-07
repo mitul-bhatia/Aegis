@@ -6,15 +6,15 @@ These endpoints power the Intelligence Dashboard and enhanced repo cards.
 """
 
 import logging
-from typing import Dict, List, Optional
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from database.db import SessionLocal
 from database.models import Repo, Scan, ScanStatus
-from scheduler_module.intelligent_scheduler import intelligent_scheduler
 from intelligence.threat_engine import ThreatIntelligenceEngine
+from scheduler_module.intelligent_scheduler import intelligent_scheduler
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/intelligence", tags=["intelligence"])
@@ -39,14 +39,14 @@ class RepoIntelligenceResponse(BaseModel):
     activity_score: float  # 0.0-1.0
     business_impact: float  # 0.0-1.0
     adaptive_interval_hours: float
-    last_scan: Optional[str]
-    next_scan_in_minutes: Optional[int]
+    last_scan: str | None
+    next_scan_in_minutes: int | None
 
 
 class GlobalThreatResponse(BaseModel):
     """Global threat intelligence across all repositories"""
     level: str  # CRITICAL, HIGH, MEDIUM, LOW
-    emergency_repos: List[str]
+    emergency_repos: list[str]
     total_threats: int
     critical_count: int
     high_count: int
@@ -60,12 +60,12 @@ class MLPredictionResponse(BaseModel):
     repo_name: str
     risk_score: float  # 0.0-1.0
     confidence: float  # 0.0-1.0
-    factors: List[str]
+    factors: list[str]
 
 
 class PredictionsResponse(BaseModel):
     """All ML predictions"""
-    high_risk_repos: List[MLPredictionResponse]
+    high_risk_repos: list[MLPredictionResponse]
     accuracy: float
     total_predictions: int
     false_positives: int
@@ -77,8 +77,8 @@ class SchedulerInsightsResponse(BaseModel):
     total_scans: int
     repo_patterns: int
     avg_scan_duration: float
-    threat_distribution: Dict[str, int]
-    priority_distribution: Dict[str, int]
+    threat_distribution: dict[str, int]
+    priority_distribution: dict[str, int]
     scans_today: int
     vulnerabilities_found_today: int
     vulnerabilities_fixed_today: int
@@ -575,7 +575,6 @@ async def get_security_scorecard(repo_id: int):
 
     Returns grade (A-F), score (0-100), and per-dimension breakdown.
     """
-    from sqlalchemy import func
 
     db = SessionLocal()
     try:

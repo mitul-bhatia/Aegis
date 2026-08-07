@@ -10,7 +10,6 @@ Output: JSON object with a "findings" array — validated with Pydantic
 
 import json
 import logging
-from typing import List, Dict
 
 from groq import Groq
 from mistralai import Mistral
@@ -18,9 +17,9 @@ from pydantic import ValidationError
 
 import config
 from agents.schemas import VulnerabilityFinding
+from intelligence.vuln_patterns import get_pattern_context
 from utils.cvss import calculate_cvss_base_score
-from intelligence.vuln_patterns import get_pattern_context, get_all_indicators
-from utils.retry import retry_with_backoff, is_rate_limit_error, is_transient_error
+from utils.retry import is_rate_limit_error, retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +96,10 @@ Example output:
 # ── Main function ─────────────────────────────────────────
 
 def run_finder_agent(
-    diff: Dict,
-    semgrep_findings: List[Dict],
+    diff: dict,
+    semgrep_findings: list[dict],
     rag_context: str,
-) -> List[VulnerabilityFinding]:
+) -> list[VulnerabilityFinding]:
     """
     Run the Finder agent on a git diff.
 
@@ -178,7 +177,7 @@ Return a JSON object: {{"findings": [...]}}"""
         return []
 
     # ── Validate each finding with Pydantic ───────────────
-    findings: List[VulnerabilityFinding] = []
+    findings: list[VulnerabilityFinding] = []
     for item in findings_data:
         try:
             findings.append(VulnerabilityFinding(**item))

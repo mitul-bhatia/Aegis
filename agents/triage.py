@@ -13,7 +13,6 @@ Output: JSON object validated with Pydantic
 
 import json
 import logging
-from typing import List
 
 from groq import Groq
 from pydantic import BaseModel, ValidationError
@@ -30,7 +29,7 @@ client = Groq(api_key=config.GROQ_API_KEY)
 class TriageResult(BaseModel):
     """Classification result from the Triage agent."""
 
-    security_domains: List[str]
+    security_domains: list[str]
     # Relevant security areas, e.g. ["sql", "auth", "crypto"]
     # Empty list means no specific domain identified
 
@@ -93,8 +92,8 @@ def run_triage_agent(diff: dict) -> TriageResult:
 
     # Build a compact diff summary (keep it short — triage should be fast)
     diff_summary = "\n".join(
-        f"[{f['status']}] {f['filename']} (+{f['additions']} -{f['deletions']})"
-        for f in diff["changed_files"]
+        f"[{f.get('status', 'modified')}] {f.get('filename', 'unknown')} (+{f.get('additions', 0)} -{f.get('deletions', 0)})"
+        for f in diff.get("changed_files", [])
     )
     # Include first 500 chars of the actual patch for context
     patch_preview = "\n".join(

@@ -17,9 +17,10 @@ from mistralai import Mistral
 from pydantic import ValidationError
 
 import config
-from utils.retry import retry_with_backoff
+
 # Import the shared schema — defined once in agents/schemas.py
 from agents.schemas import EngineerOutput
+from utils.retry import retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -172,8 +173,7 @@ def _call_mistral(user_prompt: str, model: str) -> str:
         raw = raw[7:]
     elif raw.startswith("```"):
         raw = raw[3:]
-    if raw.endswith("```"):
-        raw = raw[:-3]
+    raw = raw.removesuffix("```")
 
     logger.info(
         f"Tokens — input: {response.usage.prompt_tokens}, "

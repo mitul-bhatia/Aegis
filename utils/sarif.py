@@ -8,10 +8,9 @@ CI/CD platforms can consume SARIF files natively.
 Spec: https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
 """
 
-import json
 from datetime import timezone
-from database.models import Scan
 
+from database.models import Scan
 
 # Map Aegis/Semgrep severity strings → SARIF notification levels
 _SEVERITY_TO_SARIF = {
@@ -99,8 +98,8 @@ def generate_sarif_report(scan: Scan, findings: list[dict]) -> dict:
                 "shortDescription": {"text": f"Confirmed: {scan.vulnerability_type}"},
                 "fullDescription": {
                     "text": (
-                        f"Aegis confirmed this vulnerability is exploitable via "
-                        f"automated exploit in a Docker sandbox."
+                        "Aegis confirmed this vulnerability is exploitable via "
+                        "automated exploit in a Docker sandbox."
                     )
                 },
                 "defaultConfiguration": {

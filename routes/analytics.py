@@ -5,11 +5,11 @@ Provides deep insights into security posture, trends, and patterns.
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import List, Dict
-from fastapi import APIRouter, HTTPException
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter
 from pydantic import BaseModel
-from sqlalchemy import func, and_, case
+from sqlalchemy import case, func
 
 from database.db import SessionLocal
 from database.models import Repo, Scan, ScanStatus
@@ -32,7 +32,7 @@ class SecurityTrend(BaseModel):
 class VulnerabilityBreakdown(BaseModel):
     vuln_type: str
     count: int
-    severity_distribution: Dict[str, int]
+    severity_distribution: dict[str, int]
     avg_fix_time_hours: float
 
 
@@ -45,7 +45,7 @@ class RepoRiskScore(BaseModel):
     last_scan: str
 
 
-@router.get("/trends", response_model=List[SecurityTrend])
+@router.get("/trends", response_model=list[SecurityTrend])
 @cache_result("analytics_trends", ttl=300)  # Cache for 5 minutes
 async def get_security_trends(days: int = 30):
     """
@@ -115,7 +115,7 @@ async def get_security_trends(days: int = 30):
         db.close()
 
 
-@router.get("/vulnerability-breakdown", response_model=List[VulnerabilityBreakdown])
+@router.get("/vulnerability-breakdown", response_model=list[VulnerabilityBreakdown])
 @cache_result("analytics_vuln_breakdown", ttl=600)  # Cache for 10 minutes
 async def get_vulnerability_breakdown():
     """
@@ -169,7 +169,7 @@ async def get_vulnerability_breakdown():
         db.close()
 
 
-@router.get("/repo-risk-scores", response_model=List[RepoRiskScore])
+@router.get("/repo-risk-scores", response_model=list[RepoRiskScore])
 @cache_result("analytics_repo_risk", ttl=600)  # Cache for 10 minutes
 async def get_repo_risk_scores():
     """

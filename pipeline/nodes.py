@@ -11,32 +11,35 @@ Node order:
 Routing between nodes is handled in graph.py.
 """
 
-import os
 import json
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 import config
-from pipeline.state import AegisPipelineState
-from database.models import ScanStatus
-from orchestrator import update_scan_status  # reuse existing DB/SSE helper
+from agents.exploiter import run_exploiter_agent
+from agents.finder import run_finder_agent
+from agents.reviewer import run_remediation_loop
 
 # Agents
 from agents.triage import run_triage_agent
-from agents.finder import run_finder_agent
-from agents.exploiter import run_exploiter_agent
-from agents.reviewer import run_remediation_loop
+from database.db import SessionLocal
+from database.models import Repo, Scan, ScanStatus
 
 # Infrastructure
 from github_integration.diff_fetcher import clone_or_pull_repo, get_diff
-from scanner.semgrep_runner import run_semgrep_on_files
+from github_integration.pr_creator import (
+    create_pull_request,
+    get_pr_changed_files,
+    post_pr_review,
+)
+from orchestrator import update_scan_status  # reuse existing DB/SSE helper
+from pipeline.state import AegisPipelineState
 from rag.retriever import retrieve_relevant_context
 from sandbox.docker_runner import run_exploit_in_sandbox
-from github_integration.pr_creator import create_pull_request, post_pr_review, get_pr_changed_files
-from utils.crypto import decrypt_token
-from database.db import SessionLocal
-from database.models import Repo, Scan
 from scanner.dependency_scanner import scan_dependencies
+from scanner.semgrep_runner import run_semgrep_on_files
+from utils.crypto import decrypt_token
 
 logger = logging.getLogger(__name__)
 
@@ -470,7 +473,7 @@ def approval_gate_node(state: AegisPipelineState) -> dict:
     vuln_type = vuln["vulnerability_type"]
 
     if vuln_severity == "CRITICAL" and scan_id:
-        logger.info(f"CRITICAL vulnerability detected — awaiting human approval")
+        logger.info("CRITICAL vulnerability detected — awaiting human approval")
         update_scan_status(scan_id, ScanStatus.AWAITING_APPROVAL.value, {
             "current_agent": None,
             "agent_message": f"CRITICAL {vuln_type} patched — awaiting human approval",

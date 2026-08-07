@@ -7,8 +7,8 @@ Provides caching for expensive operations like RAG queries and API responses.
 import json
 import logging
 import os
-from typing import Optional, Any
 from functools import wraps
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,26 @@ except Exception as e:
 
 import inspect
 
+
+def _serialize_for_cache(obj: Any) -> Any:
+    """Helper to convert Pydantic models, lists, dicts, and objects into JSON-serializable primitives."""
+    if obj is None:
+        return None
+    if isinstance(obj, (int, float, str, bool)):
+        return obj
+    if hasattr(obj, "dict"):
+        return _serialize_for_cache(obj.dict())
+    if hasattr(obj, "model_dump"):
+        return _serialize_for_cache(obj.model_dump())
+    if isinstance(obj, list):
+        return [_serialize_for_cache(item) for item in obj]
+    if isinstance(obj, dict):
+        return {k: _serialize_for_cache(v) for k, v in obj.items()}
+    if hasattr(obj, "_asdict"):
+        return _serialize_for_cache(obj._asdict())
+    return str(obj)
+
+
 def cache_result(key_prefix: str, ttl: int = 3600):
     """
     Decorator to cache function results in Redis (supports sync & async functions).
@@ -46,7 +66,7 @@ def cache_result(key_prefix: str, ttl: int = 3600):
                 if not REDIS_AVAILABLE:
                     return await func(*args, **kwargs)
                 
-                cache_key = f"{key_prefix}:{func.__name__}:{str(args)}:{str(kwargs)}"
+                cache_key = f"{key_prefix}:{func.__name__}:{args!s}:{kwargs!s}"
                 try:
                     cached = redis_client.get(cache_key)
                     if cached:
@@ -54,10 +74,11 @@ def cache_result(key_prefix: str, ttl: int = 3600):
                         return json.loads(cached)
                     
                     result = await func(*args, **kwargs)
+                    serialized = _serialize_for_cache(result)
                     redis_client.setex(
                         cache_key,
                         ttl,
-                        json.dumps(result, default=str)
+                        json.dumps(serialized)
                     )
                     logger.debug(f"Cache set: {cache_key}")
                     return result
@@ -71,7 +92,7 @@ def cache_result(key_prefix: str, ttl: int = 3600):
                 if not REDIS_AVAILABLE:
                     return func(*args, **kwargs)
                 
-                cache_key = f"{key_prefix}:{func.__name__}:{str(args)}:{str(kwargs)}"
+                cache_key = f"{key_prefix}:{func.__name__}:{args!s}:{kwargs!s}"
                 try:
                     cached = redis_client.get(cache_key)
                     if cached:
@@ -79,10 +100,11 @@ def cache_result(key_prefix: str, ttl: int = 3600):
                         return json.loads(cached)
                     
                     result = func(*args, **kwargs)
+                    serialized = _serialize_for_cache(result)
                     redis_client.setex(
                         cache_key,
                         ttl,
-                        json.dumps(result, default=str)
+                        json.dumps(serialized)
                     )
                     logger.debug(f"Cache set: {cache_key}")
                     return result
@@ -112,7 +134,7 @@ def invalidate_cache(pattern: str):
         logger.warning(f"Cache invalidation error: {e}")
 
 
-def get_cache(key: str) -> Optional[Any]:
+def get_cache(key: str) -> Any | None:
     """Get value from cache."""
     if not REDIS_AVAILABLE:
         return None

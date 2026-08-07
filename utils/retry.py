@@ -4,10 +4,10 @@ Aegis — Retry Logic with Exponential Backoff
 Provides retry decorators for API calls with intelligent backoff.
 """
 
+import functools
 import logging
 import time
-import functools
-from typing import Callable, Type, Tuple
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ def retry_with_backoff(
     initial_delay: float = 1.0,
     max_delay: float = 60.0,
     exponential_base: float = 2.0,
-    exceptions: Tuple[Type[Exception], ...] = (Exception,),
+    exceptions: tuple[type[Exception], ...] = (Exception,),
     on_retry: Callable[[Exception, int], None] = None,
 ):
     """
@@ -125,9 +125,7 @@ def is_transient_error(exception: Exception) -> bool:
 
 class RetryableError(Exception):
     """Exception that should trigger a retry"""
-    pass
 
 
 class NonRetryableError(Exception):
     """Exception that should NOT trigger a retry"""
-    pass

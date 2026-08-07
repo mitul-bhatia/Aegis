@@ -18,7 +18,9 @@ Usage:
 """
 
 import logging
+
 from cryptography.fernet import Fernet, InvalidToken
+
 import config
 
 logger = logging.getLogger(__name__)

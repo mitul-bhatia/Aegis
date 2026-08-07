@@ -9,8 +9,9 @@ Handles:
 """
 
 import logging
+
 import requests
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

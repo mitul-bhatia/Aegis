@@ -14,10 +14,10 @@ Coordinates the Engineer → Reviewer → Engineer retry cycle:
 Loops up to config.MAX_PATCH_RETRIES times.
 """
 
-import os
 import json
 import logging
-from typing import Callable, Optional
+import os
+from collections.abc import Callable
 
 import config
 from agents.engineer import run_engineer_agent
@@ -35,7 +35,7 @@ def run_remediation_loop(
     repo_path: str,
     repo_name: str = None,
     scan_id: int = None,
-    update_status_fn: Optional[Callable] = None,
+    update_status_fn: Callable | None = None,
     safety_report: dict = None,
 ) -> dict:
     """

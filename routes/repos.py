@@ -9,15 +9,15 @@ Handles:
 
 import logging
 import math
+
 import requests
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Optional
 
 import config
 from database.db import get_db
-from database.models import User, Repo
+from database.models import Repo, User
 from rag.indexer import index_repository
 from utils.crypto import decrypt_token  # decrypt before using the token
 
@@ -34,7 +34,7 @@ class AddRepoRequest(BaseModel):
 class RepoResponse(BaseModel):
     id: int
     full_name: str
-    webhook_id: Optional[int]
+    webhook_id: int | None
     is_indexed: bool
     status: str
     created_at: str
@@ -54,8 +54,7 @@ def _parse_repo_url(url: str) -> str:
     url = url.replace("https://github.com/", "").replace("http://github.com/", "")
     url = url.replace("github.com/", "")
     # Remove .git suffix if present
-    if url.endswith(".git"):
-        url = url[:-4]
+    url = url.removesuffix(".git")
     return url
 
 

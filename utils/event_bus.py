@@ -18,7 +18,6 @@ This means:
 
 import asyncio
 import logging
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +32,11 @@ class ScanEventBus:
 
     def __init__(self):
         # Global subscribers receive ALL scan updates
-        self._global_queues: List[asyncio.Queue] = []
+        self._global_queues: list[asyncio.Queue] = []
         # Per-scan subscribers receive updates for one specific scan
-        self._scan_queues: Dict[int, List[asyncio.Queue]] = {}
+        self._scan_queues: dict[int, list[asyncio.Queue]] = {}
 
-    def subscribe(self, scan_id: Optional[int] = None) -> asyncio.Queue:
+    def subscribe(self, scan_id: int | None = None) -> asyncio.Queue:
         """
         Register a new SSE client and return its queue.
         Call unsubscribe() when the client disconnects.
@@ -53,7 +52,7 @@ class ScanEventBus:
             self._global_queues.append(queue)
         return queue
 
-    def unsubscribe(self, queue: asyncio.Queue, scan_id: Optional[int] = None):
+    def unsubscribe(self, queue: asyncio.Queue, scan_id: int | None = None):
         """Remove a client's queue when they disconnect."""
         if scan_id is not None:
             if scan_id in self._scan_queues:

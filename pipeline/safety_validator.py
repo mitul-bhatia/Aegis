@@ -18,12 +18,11 @@ Engineer for another attempt.
 
 import logging
 
-from pipeline.state import AegisPipelineState
-from database.models import ScanStatus
-from orchestrator import update_scan_status
-from scanner.semgrep_runner import run_semgrep_on_files
 from database.db import SessionLocal
-from database.models import Scan
+from database.models import Scan, ScanStatus
+from orchestrator import update_scan_status
+from pipeline.state import AegisPipelineState
+from scanner.semgrep_runner import run_semgrep_on_files
 
 logger = logging.getLogger(__name__)
 

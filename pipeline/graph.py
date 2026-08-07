@@ -32,19 +32,18 @@ Graph topology:
       └── all done? ──► END
 """
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from pipeline.state import AegisPipelineState
 from pipeline.nodes import (
-    pre_process_node,
-    finder_node,
-    exploiter_node,
-    engineer_node,
-    pr_creator_node,
     approval_gate_node,
+    engineer_node,
+    exploiter_node,
+    finder_node,
+    pr_creator_node,
+    pre_process_node,
 )
 from pipeline.safety_validator import safety_validator_node
-
+from pipeline.state import AegisPipelineState
 
 # ── Routing functions ─────────────────────────────────────
 # Each returns a string key that maps to the next node name.

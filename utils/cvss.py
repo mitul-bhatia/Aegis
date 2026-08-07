@@ -20,9 +20,8 @@ Metrics:
 Reference: https://www.first.org/cvss/v3.1/specification-document
 """
 
-import math
 import logging
-from typing import Optional
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ _UI  = {"N": 0.85, "R": 0.62}
 _CIA = {"N": 0.00, "L": 0.22, "H": 0.56}
 
 
-def calculate_cvss_base_score(vector: str) -> Optional[float]:
+def calculate_cvss_base_score(vector: str) -> float | None:
     """
     Calculate the CVSS 3.1 base score from a vector string.
 

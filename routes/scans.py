@@ -20,17 +20,16 @@ import json
 import logging
 import threading
 import traceback
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 import config
 from database.db import SessionLocal
-from database.models import Scan, Repo, ScanStatus
+from database.models import Repo, Scan, ScanStatus
+from github_integration.pr_creator import create_pull_request
 from utils.event_bus import event_bus
 from utils.limiter import limiter
-from github_integration.pr_creator import create_pull_request
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -42,7 +41,7 @@ logger = logging.getLogger(__name__)
 # So we grab the running event loop and schedule the publish from there.
 
 # Stored at startup so the sync bridge can reach it
-_event_loop: Optional[asyncio.AbstractEventLoop] = None
+_event_loop: asyncio.AbstractEventLoop | None = None
 
 
 def set_event_loop(loop: asyncio.AbstractEventLoop):
@@ -66,7 +65,7 @@ def notify_scan_update_sync(scan_data: dict):
 
 # ── SSE Generator ─────────────────────────────────────────
 
-async def scan_event_generator(repo_id: Optional[int] = None):
+async def scan_event_generator(repo_id: int | None = None):
     """
     Async generator that yields SSE events to one browser tab.
 
@@ -112,7 +111,7 @@ async def scan_event_generator(repo_id: Optional[int] = None):
 # ── SSE Endpoint ──────────────────────────────────────────
 
 @router.get("/api/v1/scans/live")
-async def live_scans(repo_id: Optional[int] = None):
+async def live_scans(repo_id: int | None = None):
     """
     SSE endpoint — browser connects once and receives all scan updates in real time.
     Usage: new EventSource('/api/scans/live')
@@ -161,10 +160,10 @@ def _scan_to_dict(s: Scan) -> dict:
 
 @router.get("/api/v1/scans")
 async def list_scans(
-    repo_id: Optional[int] = None,
+    repo_id: int | None = None,
     page: int = 1,
     per_page: int = 20,
-    status: Optional[str] = None,
+    status: str | None = None,
 ):
     """
     List scans with pagination.
@@ -467,7 +466,7 @@ async def approve_critical_fix(scan_id: int):
                     _scan = _db.query(Scan).filter(Scan.id == scan_id).first()
                     if _scan:
                         _scan.status = ScanStatus.FAILED.value
-                        _scan.error_message = f"PR creation failed: {str(e)}"
+                        _scan.error_message = f"PR creation failed: {e!s}"
                         _db.commit()
                         notify_scan_update_sync(_scan_to_dict(_scan))
                 except Exception:
