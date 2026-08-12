@@ -22,6 +22,11 @@ def _build_engine(url: str):
             logger.info("Successfully connected to PostgreSQL / Supabase database")
             return eng
         except Exception as e:
+            if os.getenv("RENDER"):
+                logger.critical(f"FATAL: PostgreSQL connection failed on Render ({e}). Refusing to fall back to ephemeral SQLite. Crashing app.")
+                import sys
+                sys.exit(1)
+            
             logger.warning(f"PostgreSQL connection failed ({e}). Falling back to local SQLite database (sqlite:///./aegis.db).")
             return create_engine("sqlite:///./aegis.db", connect_args={"check_same_thread": False}, echo=False)
 

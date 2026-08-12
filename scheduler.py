@@ -39,6 +39,10 @@ class AegisScheduler:
         logger.info(f"🤖 Aegis Scheduler started - scanning every {self.scan_interval} hours")
         
         self.background_task = asyncio.create_task(self._run_scheduler())
+        
+        # Keep Render instance awake
+        if os.getenv("RENDER"):
+            asyncio.create_task(self._ping_loop())
     
     async def stop(self):
         """Stop the autonomous scheduler"""
@@ -46,7 +50,29 @@ class AegisScheduler:
         if self.background_task:
             self.background_task.cancel()
             logger.info("🛑 Aegis Scheduler stopped")
-    
+            
+    async def _ping_loop(self):
+        """
+        Pings the backend's /health endpoint every 14 minutes.
+        Render's free tier spins down after 15 minutes of inactivity.
+        This keeps the instance awake so Vercel proxies and webhooks don't timeout.
+        """
+        import httpx
+        url = f"{config.BACKEND_URL.rstrip('/')}/health"
+        logger.info(f"⏰ Starting self-ping loop for {url}")
+        
+        while self.running:
+            try:
+                # Wait 14 minutes
+                await asyncio.sleep(14 * 60)
+                async with httpx.AsyncClient() as client:
+                    await client.get(url, timeout=5)
+                logger.debug("Successfully pinged backend to keep it awake")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug(f"Self-ping failed: {e}")
+
     async def _run_scheduler(self):
         """Main scheduler loop"""
         # Wait for the server to fully start before running the first scan

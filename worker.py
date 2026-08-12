@@ -59,32 +59,48 @@ def start_worker():
             logger.error(f"Cannot connect to Redis at {config.REDIS_URL}: {e}. Retrying in 10s...")
             time.sleep(10)
     
+    PROCESSING_QUEUE = f"{QUEUE_NAME}_processing"
+
     while True:
         try:
-            # Blocking pop with 5 second timeout
-            item = r.blpop(QUEUE_NAME, timeout=5)
-            if not item:
+            # Reliable Queue Pattern: move from pending to processing atomically
+            # timeout=5 means wait 5s for an item. If timeout, returns None
+            payload_str = r.brpoplpush(QUEUE_NAME, PROCESSING_QUEUE, timeout=5)
+            if not payload_str:
                 continue
 
-            _, payload_str = item
+            # If payload_str is bytes (which it usually is from redis), decode it
+            if isinstance(payload_str, bytes):
+                payload_str = payload_str.decode("utf-8")
+
             push_info = json.loads(payload_str)
             repo_name = push_info.get("repo_name", "unknown")
             commit_sha = push_info.get("commit_sha", "")[:8]
 
-            logger.info(f"⚡ Worker picked up scan job for {repo_name} [{commit_sha}]")
+            logger.info(f"⚡ Worker picked up scan job for {repo_name} @ {commit_sha}")
+            start_t = time.time()
             
-            # Execute 7-agent pipeline
-            result = run_aegis_pipeline(push_info)
-            
-            # Send Slack / Discord alerts on completion if vulnerability fixed
-            if result and isinstance(result, dict) and result.get("pr_url"):
-                send_scan_alert(
-                    repo_name=repo_name,
-                    vulnerability_type=result.get("vulnerability_type", "Security Bug"),
-                    severity=result.get("severity", "HIGH"),
-                    vulnerable_file=result.get("vulnerable_file", "Codebase"),
-                    pr_url=result.get("pr_url"),
-                )
+            try:
+                result = run_aegis_pipeline(push_info)
+                elapsed = time.time() - start_t
+                logger.info(f"✅ Worker successfully completed scan for {repo_name} @ {commit_sha} in {elapsed:.1f}s")
+                
+                # Send Slack / Discord alerts on completion if vulnerability fixed
+                if result and isinstance(result, dict) and result.get("pr_url"):
+                    send_scan_alert(
+                        repo_name=repo_name,
+                        vulnerability_type=result.get("vulnerability_type", "Security Bug"),
+                        severity=result.get("severity", "HIGH"),
+                        vulnerable_file=result.get("vulnerable_file", "Codebase"),
+                        pr_url=result.get("pr_url"),
+                    )
+            except Exception as e:
+                elapsed = time.time() - start_t
+                logger.error(f"❌ Worker pipeline failed for {repo_name} @ {commit_sha} after {elapsed:.1f}s: {e}")
+            finally:
+                # Remove from processing queue regardless of success/failure 
+                # (so it doesn't stay stuck forever, though in a real distributed system we might move it to a DLQ)
+                r.lrem(PROCESSING_QUEUE, 0, payload_str)
 
         except KeyboardInterrupt:
             logger.info("Worker shutting down...")
