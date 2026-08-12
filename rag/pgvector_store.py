@@ -96,8 +96,9 @@ def query_similar_code(repo_id: int, query_text: str, top_k: int = 5) -> List[Di
     try:
         query_vector = get_embedding(query_text)
 
-        if HAS_PGVECTOR:
-            # Format vector as string array format for Postgres pgvector query literal if needed
+        is_postgres = (db.bind is not None and db.bind.dialect.name == "postgresql")
+
+        if HAS_PGVECTOR and is_postgres:
             vec_str = str(query_vector)
             stmt = text("""
                 SELECT file_path, content, meta_json
@@ -124,6 +125,7 @@ def query_similar_code(repo_id: int, query_text: str, top_k: int = 5) -> List[Di
                     "content": r.content,
                     "metadata": json.loads(r.meta_json or "{}"),
                 })
+
     except Exception as e:
         logger.error(f"pgvector search error: {e}")
     finally:
