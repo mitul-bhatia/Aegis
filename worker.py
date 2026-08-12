@@ -48,7 +48,16 @@ def start_worker():
     logger.info("🤖 Starting Aegis Redis Background Scan Worker...")
     logger.info(f"Connecting to Redis at: {config.REDIS_URL}")
     
-    r = get_redis_client()
+    r = None
+    while True:
+        try:
+            r = get_redis_client()
+            r.ping()
+            logger.info("✓ Connected to Redis worker queue successfully.")
+            break
+        except Exception as e:
+            logger.error(f"Cannot connect to Redis at {config.REDIS_URL}: {e}. Retrying in 10s...")
+            time.sleep(10)
     
     while True:
         try:
@@ -81,8 +90,9 @@ def start_worker():
             logger.info("Worker shutting down...")
             break
         except Exception as e:
-            logger.error(f"Error in background worker execution: {e}", exc_info=True)
-            time.sleep(2)
+            logger.error(f"Error in background worker execution: {e}")
+            time.sleep(5)
+
 
 
 if __name__ == "__main__":
