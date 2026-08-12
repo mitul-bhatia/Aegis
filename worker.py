@@ -94,7 +94,35 @@ def start_worker():
             time.sleep(5)
 
 
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+def start_dummy_server():
+    """
+    Render requires Web Services to bind to a port, otherwise the deploy fails.
+    If the worker is deployed as a Web Service (e.g. on Render Free Tier),
+    this dummy server listens on $PORT to satisfy the health check.
+    """
+    port = int(os.environ.get("PORT", 10000))
+    class DummyHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Worker is running")
+    
+    try:
+        server = HTTPServer(("0.0.0.0", port), DummyHandler)
+        logger.info(f"Started dummy HTTP server on port {port} to satisfy Render Web Service checks")
+        server.serve_forever()
+    except Exception as e:
+        logger.error(f"Failed to start dummy server: {e}")
 
 if __name__ == "__main__":
     config.setup_logging()
+    
+    # If PORT is in the environment, we might be deployed as a Web Service on Render
+    if os.environ.get("PORT"):
+        threading.Thread(target=start_dummy_server, daemon=True).start()
+        
     start_worker()
