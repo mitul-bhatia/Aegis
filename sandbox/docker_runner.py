@@ -23,8 +23,11 @@ USE_REMOTE_SANDBOX = bool(SANDBOX_SERVICE_URL and SANDBOX_API_KEY)
 _DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
 
 # Auto-fallback: If Docker is unavailable and AUTO_FALLBACK is enabled,
-# automatically switch to DEMO_MODE instead of failing the scan
-_AUTO_FALLBACK = os.getenv("AUTO_FALLBACK_TO_DEMO", "true").lower() == "true"
+# automatically switch to DEMO_MODE instead of failing the scan.
+# DEFAULT IS FALSE — scans should fail clearly if Docker is unavailable,
+# not silently return fake hardcoded results.
+_AUTO_FALLBACK = os.getenv("AUTO_FALLBACK_TO_DEMO", "false").lower() == "true"
+
 
 
 async def _call_remote_sandbox(

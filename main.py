@@ -54,7 +54,9 @@ app.include_router(analytics_router)
 # Create database tables on startup
 @app.on_event("startup")
 async def on_startup():
-    # Database is already initialized - tables created via Base.metadata.create_all()
+    # Initialize database tables on startup (creates tables if they don't exist)
+    # We do this here rather than at Docker build time so env vars are available
+    init_db()
     logger.info("Database ready")
 
     # Give the SSE bridge the running event loop so the orchestrator

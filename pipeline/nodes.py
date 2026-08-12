@@ -78,15 +78,16 @@ def pre_process_node(state: AegisPipelineState) -> dict:
 
     # Use the user's decrypted token if available, else fall back to push_info URL
     user_token = None
+    clone_url = push_info.get("repo_url", f"https://github.com/{repo_full_name}.git")
     db = SessionLocal()
     try:
         repo_obj = db.query(Repo).filter(Repo.full_name == repo_full_name).first()
         if repo_obj and repo_obj.user:
             user_token = decrypt_token(repo_obj.user.github_token)
             clone_url = f"https://x-access-token:{user_token}@github.com/{repo_full_name}.git"
-        else:
-            clone_url = push_info.get("repo_url", f"https://github.com/{repo_full_name}.git")
     finally:
+        db.close()
+
     clone_or_pull_repo(clone_url, local_repo_path)
 
     # ── Auto re-index repository RAG context on push ─────

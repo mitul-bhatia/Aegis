@@ -2,7 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (git for cloning repos during pipeline execution)
+# Note: docker.io CLI is NOT needed in the worker container
 RUN apt-get update && apt-get install -y \
     git \
     curl \
