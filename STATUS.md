@@ -56,6 +56,18 @@
 - **Test Suite**: Re-verified `.venv/bin/python -m pytest tests/ -v` — 11/11 tests passed in 2.29s.
 - **Git Commit**: `758938d` (`fix(db): add connection resilience fallback to SQLite when PostgreSQL/Supabase is unreachable`)
 
+## [2026-08-12 11:05 IST] Iteration 9 — Secure Cookie Management & Session Destruction Completed
+- **Eliminated Demo Fallback Loop**: Removed unauthenticated fallback `api.getUser(cachedId)` in `aegis-frontend/lib/api.ts`. Unauthenticated calls to `/api/v1/auth/me` return `null` and clear local session state instead of force-logging in as `demo-user`.
+- **Cross-Domain Cookie & Header Security**:
+  - `routes/auth.py`: Updated `/api/v1/auth/logout` endpoint to specify matching `samesite="none"` (or `lax`), `secure=True`, and `path="/"` parameters when deleting session cookies.
+  - `aegis-frontend/lib/api.ts`: Configured `getOpts()` to send `credentials: "include"` alongside `Authorization: Bearer <token_or_id>` and `X-Aegis-User-Id` headers so cross-site sessions work across all browsers.
+- **Dashboard & Landing Page Clean Auth**:
+  - `aegis-frontend/app/dashboard/page.tsx`: Updated auth state handler to set username and avatar directly from `user` object returned by server. Added full session wipe (`localStorage.clear()`, `api.logout()`) on Sign Out.
+  - `aegis-frontend/app/page.tsx`: Separated "Connect GitHub" (real OAuth) and "Try Demo Mode" (explicit demo mode) into dedicated interactive controls.
+- **Verification**: `npx tsc --noEmit` passed with 0 errors. `pytest tests/ -v` passed 11/11.
+- **Git Commit**: `5d22470` (`fix(auth): implement secure cookie management, clear demo fallback, and complete session destruction`)
+
+
 
 
 
