@@ -101,17 +101,11 @@ export const api = {
       console.warn("getMe failed:", e);
     }
 
-    // Fallback: check localStorage for cached user session
+    // Unauthenticated — clear any stale cached session from localStorage
     if (typeof window !== "undefined") {
-      const cachedId = localStorage.getItem("aegis_user_id");
-      if (cachedId) {
-        try {
-          const user = await api.getUser(parseInt(cachedId, 10));
-          return user;
-        } catch (e) {
-          console.warn("getUser fallback failed:", e);
-        }
-      }
+      localStorage.removeItem("aegis_user_id");
+      localStorage.removeItem("aegis_username");
+      localStorage.removeItem("aegis_avatar");
     }
     return null;
   },
@@ -122,9 +116,11 @@ export const api = {
       localStorage.removeItem("aegis_user_id");
       localStorage.removeItem("aegis_username");
       localStorage.removeItem("aegis_avatar");
+      sessionStorage.clear();
     }
     await fetch(`${API_V1}/auth/logout`, getOpts({ method: "POST" })).catch(() => null);
   },
+
 
   /** Get user by ID (kept for backwards compat). */
   async getUser(userId: number) {

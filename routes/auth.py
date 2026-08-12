@@ -186,12 +186,21 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(request: Request, response: Response):
     """
     Clear the session cookie — effectively logs the user out.
     """
-    response.delete_cookie(key="aegis_session", path="/")
+    is_secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    samesite_setting = "none" if is_secure else "lax"
+
+    response.delete_cookie(
+        key="aegis_session",
+        path="/",
+        secure=is_secure,
+        samesite=samesite_setting,
+    )
     return {"message": "Logged out"}
+
 
 
 @router.get("/user/{user_id}", response_model=UserResponse)

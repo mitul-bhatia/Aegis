@@ -17,25 +17,25 @@ export default function LandingPage() {
     api.getMe().then((user) => { if (user) router.replace("/dashboard"); });
   }, [router]);
 
-  async function handleLogin() {
-    const isRealClientId = GITHUB_CLIENT_ID && GITHUB_CLIENT_ID.length >= 15 && !GITHUB_CLIENT_ID.includes("your_");
-    if (isRealClientId) {
-      const redirectUri = `${window.location.origin}/auth/callback`;
-      window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,write:repo_hook&redirect_uri=${redirectUri}`;
-    } else {
-      try {
-        const user = await api.loginDemo();
-        if (typeof window !== "undefined") {
-          localStorage.setItem("aegis_user_id", String(user.id));
-          localStorage.setItem("aegis_username", user.github_username);
-          localStorage.setItem("aegis_avatar", user.github_avatar_url);
-        }
-      } catch (e) {
-        console.warn("Demo login fallback:", e);
-      }
-      router.push("/dashboard");
-    }
+  function handleGitHubLogin() {
+    const redirectUri = `${window.location.origin}/auth/callback`;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,write:repo_hook&redirect_uri=${redirectUri}`;
   }
+
+  async function handleDemoLogin() {
+    try {
+      const user = await api.loginDemo();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("aegis_user_id", String(user.id));
+        localStorage.setItem("aegis_username", user.github_username);
+        localStorage.setItem("aegis_avatar", user.github_avatar_url);
+      }
+    } catch (e) {
+      console.warn("Demo login error:", e);
+    }
+    router.push("/dashboard");
+  }
+
 
   return (
     <div style={{ background: "var(--background)", color: "var(--foreground)", overflowX: "hidden" }}>
@@ -58,7 +58,16 @@ export default function LandingPage() {
         </ul>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <ThemeToggle />
-          <button onClick={handleLogin} className="aegis-btn-shimmer" style={{
+          <button onClick={handleDemoLogin} style={{
+            fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "9px 18px",
+            border: "1px solid var(--border)", color: "var(--muted)", background: "transparent",
+            cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase", transition: "color 0.2s, border-color 0.2s",
+          }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--foreground)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--foreground)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; }}>
+            Try Demo Mode
+          </button>
+          <button onClick={handleGitHubLogin} className="aegis-btn-shimmer" style={{
             fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "9px 22px",
             border: "1px solid var(--green)", color: "var(--green)", background: "transparent",
             cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase", transition: "background 0.2s, color 0.2s",
@@ -108,7 +117,7 @@ export default function LandingPage() {
           </p>
 
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={handleLogin} className="aegis-btn-shimmer" style={{
+            <button onClick={handleGitHubLogin} className="aegis-btn-shimmer" style={{
               fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "14px 32px",
               background: "var(--green)", color: "var(--background)", border: "none",
               cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase",
@@ -116,18 +125,19 @@ export default function LandingPage() {
             }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 24px rgba(0,232,122,0.3)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = ""; (e.currentTarget as HTMLButtonElement).style.boxShadow = ""; }}>
-              View Live Dashboard →
+              Connect GitHub →
             </button>
-            <button style={{
+            <button onClick={handleDemoLogin} style={{
               fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "14px 32px",
               background: "transparent", color: "var(--foreground)", border: "1px solid var(--border)",
               cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase", transition: "border-color 0.2s, color 0.2s",
             }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--blue)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--blue)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--green)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--green)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--foreground)"; }}>
-              Read Architecture Docs
+              Try Demo Mode
             </button>
           </div>
+
 
           {/* Hero metrics bar */}
           <div style={{ display: "flex", gap: 0, marginTop: 64, border: "1px solid var(--border)", background: "var(--surface)" }}>
@@ -250,11 +260,12 @@ export default function LandingPage() {
           From commit webhook to merged patch, fully autonomous — averaging 2-5 minutes with Docker-isolated exploit validation.
         </p>
         <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", position: "relative" }}>
-          <button onClick={handleLogin} className="aegis-btn-shimmer" style={{
+          <button onClick={handleGitHubLogin} className="aegis-btn-shimmer" style={{
             fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "14px 32px",
             background: "var(--green)", color: "var(--background)", border: "none",
             cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600,
           }}>Deploy the Swarm →</button>
+
           <button style={{
             fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "14px 32px",
             background: "transparent", color: "var(--foreground)", border: "1px solid var(--border)",

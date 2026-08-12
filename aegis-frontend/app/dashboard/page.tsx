@@ -172,16 +172,20 @@ export default function DashboardPage() {
     api.getMe().then((user) => {
       if (user) {
         setUserId(user.id);
+        setUsername(user.github_username);
+        setAvatarUrl(user.github_avatar_url);
         localStorage.setItem("aegis_user_id", String(user.id));
-        setUsername(localStorage.getItem("aegis_username") || user.github_username);
-        setAvatarUrl(localStorage.getItem("aegis_avatar") || user.github_avatar_url);
+        localStorage.setItem("aegis_username", user.github_username);
+        localStorage.setItem("aegis_avatar", user.github_avatar_url);
       } else {
-        const cachedId = localStorage.getItem("aegis_user_id");
-        if (cachedId) { setUserId(parseInt(cachedId, 10)); setUsername(localStorage.getItem("aegis_username") || ""); setAvatarUrl(localStorage.getItem("aegis_avatar") || ""); }
+        setUserId(0);
+        setUsername("");
+        setAvatarUrl("");
       }
       setSessionReady(true);
     });
   }, []);
+
 
   const fetchData = useCallback(async () => {
     if (!userId) return;
@@ -252,10 +256,11 @@ export default function DashboardPage() {
           <Link href="/analytics">
             <button style={{ fontFamily: "var(--font-share-tech-mono, monospace)", fontSize: 10, padding: "6px 14px", border: "1px solid var(--border)", background: "transparent", color: "var(--muted)", cursor: "pointer", letterSpacing: "0.08em", textTransform: "uppercase" }}>Analytics</button>
           </Link>
-          <button onClick={async () => { await api.logout(); localStorage.removeItem("aegis_username"); localStorage.removeItem("aegis_avatar"); router.push("/"); }}
+          <button onClick={async () => { await api.logout(); localStorage.clear(); setUserId(0); setUsername(""); setAvatarUrl(""); router.push("/"); }}
             style={{ fontFamily: "var(--font-share-tech-mono, monospace)", fontSize: 10, padding: "6px 14px", border: "1px solid var(--border)", background: "transparent", color: "var(--muted)", cursor: "pointer", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Sign Out
           </button>
+
         </div>
       </header>
 
