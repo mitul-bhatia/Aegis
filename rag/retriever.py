@@ -1,5 +1,8 @@
 import logging
 from rag.indexer import get_or_create_collection
+from rag.pgvector_store import query_similar_code
+from database.db import SessionLocal
+from database.models import Repo
 import config
 
 logger = logging.getLogger(__name__)
@@ -12,18 +15,10 @@ def retrieve_relevant_context(
 ) -> str:
     """
     Given a commit diff, find the most relevant code chunks from the index.
-
-    With function-level chunking, results now point to specific functions
-    and classes rather than random file slices — giving agents much better
-    context about where vulnerabilities live and how surrounding code works.
+    Checks persistent Supabase pgvector store first, falling back to local ChromaDB.
     """
-    collection = get_or_create_collection(repo_name)
-
-    if collection.count() == 0:
-        return "No related context found (repository not yet indexed)."
-
-    changed_files = [f["filename"] for f in diff["changed_files"]]
-    changed_code = "\n".join([f.get("patch", "") for f in diff["changed_files"]])
+    changed_files = [f["filename"] for f in diff.get("changed_files", [])]
+    changed_code = "\n".join([f.get("patch", "") for f in diff.get("changed_files", [])])
 
     # Build a focused query from the diff + any Semgrep findings
     query_parts = [
@@ -32,7 +27,6 @@ def retrieve_relevant_context(
     ]
 
     if semgrep_findings:
-        # Include vuln type + message for targeted retrieval
         finding_strs = []
         for f in semgrep_findings[:3]:
             msg = f.get("message") or f.get("vuln_type") or ""
@@ -41,7 +35,42 @@ def retrieve_relevant_context(
 
     query = "\n".join(query_parts)
 
+    # 1. Try pgvector store if repo exists in DB
     try:
+        db = SessionLocal()
+        repo_obj = db.query(Repo).filter(Repo.full_name == repo_name).first()
+        db.close()
+        if repo_obj:
+            pg_results = query_similar_code(repo_obj.id, query, top_k=top_k)
+            if pg_results:
+                context_parts = ["=== RELATED CODEBASE CONTEXT (pgvector) ===\n"]
+                for item in pg_results:
+                    meta = item.get("metadata", {})
+                    file_path = item.get("file_path", "unknown")
+                    chunk_type = meta.get("chunk_type", "file")
+                    name = meta.get("name", file_path)
+                    start_line = meta.get("start_line", "?")
+                    end_line = meta.get("end_line", "?")
+                    content = item.get("content", "")[:500]
+
+                    if chunk_type in ("function", "class"):
+                        header = f"{chunk_type} `{name}` in {file_path} (lines {start_line}–{end_line})"
+                    else:
+                        header = f"{file_path}"
+
+                    context_parts.append(f"\n--- {header} ---\n{content}\n")
+
+                return "\n".join(context_parts)
+    except Exception as e:
+        logger.warning(f"pgvector retrieval fallback triggered: {e}")
+
+    # 2. Fallback to local ChromaDB collection
+    try:
+        collection = get_or_create_collection(repo_name)
+
+        if collection.count() == 0:
+            return "No related context found (repository not yet indexed)."
+
         n = min(top_k, collection.count())
         results = collection.query(
             query_texts=[query],
@@ -74,12 +103,10 @@ def retrieve_relevant_context(
             end_line = meta.get("end_line", "?")
             content_preview = meta.get("content_preview", doc[:500])
 
-            # Build a human-readable header for this chunk
             if chunk_type in ("function", "class"):
                 header = f"{chunk_type} `{name}` in {file_path} (lines {start_line}–{end_line})"
             else:
                 header = f"{file_path}"
-                # Only show file-level chunks once per file
                 if file_path in seen_files:
                     continue
                 seen_files.add(file_path)
@@ -91,3 +118,4 @@ def retrieve_relevant_context(
     except Exception as e:
         logger.error(f"RAG retrieval error: {e}")
         return "No related context found."
+

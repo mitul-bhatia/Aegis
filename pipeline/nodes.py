@@ -87,11 +87,16 @@ def pre_process_node(state: AegisPipelineState) -> dict:
         else:
             clone_url = push_info.get("repo_url", f"https://github.com/{repo_full_name}.git")
     finally:
-        db.close()
-
     clone_or_pull_repo(clone_url, local_repo_path)
 
-    # ── Get the diff ──────────────────────────────────────
+    # ── Auto re-index repository RAG context on push ─────
+    try:
+        from rag.indexer import index_repository
+        indexed_count = index_repository(local_repo_path, repo_full_name)
+        logger.info(f"RAG: automatically updated index for {repo_full_name} ({indexed_count} files)")
+    except Exception as e:
+        logger.warning(f"RAG auto-index on push failed: {e}")
+
     # For PR scans, fetch files directly from the PR API (more accurate than commit diff)
     is_pr = push_info.get("is_pr", False)
     pr_number = push_info.get("pr_number")

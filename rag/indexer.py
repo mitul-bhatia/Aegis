@@ -248,7 +248,7 @@ def extract_file_metadata(file_path: str, content: str) -> dict:
 
 def index_repository(repo_path: str, repo_name: str, max_files: int = 200) -> int:
     """
-    Walk through the repo and index code files into ChromaDB.
+    Walk through the repo and index code files into ChromaDB and persistent pgvector store.
 
     Uses function/class-level chunking so the retriever can return
     the exact function containing a vulnerability rather than a random
@@ -261,6 +261,7 @@ def index_repository(repo_path: str, repo_name: str, max_files: int = 200) -> in
     batch_ids: list[str] = []
     batch_docs: list[str] = []
     batch_metas: list[dict] = []
+    all_pg_chunks: list[dict] = []
     files_indexed = 0
     chunks_indexed = 0
 
@@ -297,7 +298,7 @@ def index_repository(repo_path: str, repo_name: str, max_files: int = 200) -> in
                 for chunk in chunks:
                     batch_ids.append(chunk["id"])
                     batch_docs.append(chunk["content"])
-                    batch_metas.append({
+                    meta_dict = {
                         "file_path": chunk["file"],
                         "chunk_type": chunk["type"],
                         "name": chunk["name"],
@@ -308,6 +309,14 @@ def index_repository(repo_path: str, repo_name: str, max_files: int = 200) -> in
                         "has_http": file_meta["has_http"],
                         # Store the actual chunk content for retrieval
                         "content_preview": chunk["content"][:500],
+                    }
+                    batch_metas.append(meta_dict)
+                    
+                    all_pg_chunks.append({
+                        "id": chunk["id"],
+                        "file_path": chunk["file"],
+                        "content": chunk["content"],
+                        "metadata": meta_dict,
                     })
                     chunks_indexed += 1
 
@@ -330,5 +339,23 @@ def index_repository(repo_path: str, repo_name: str, max_files: int = 200) -> in
         collection.upsert(ids=batch_ids, documents=batch_docs, metadatas=batch_metas)
         logger.debug(f"Final batch upserted {len(batch_ids)} chunks")
 
+    # Store into persistent pgvector store
+    try:
+        from database.db import SessionLocal
+        from database.models import Repo
+        from rag.pgvector_store import store_embeddings
+
+        db = SessionLocal()
+        repo_obj = db.query(Repo).filter(Repo.full_name == repo_name).first()
+        if repo_obj:
+            store_embeddings(repo_obj.id, all_pg_chunks)
+            repo_obj.is_indexed = True
+            db.commit()
+            logger.info(f"Synchronized {len(all_pg_chunks)} chunks to pgvector store for repo {repo_name} (id={repo_obj.id})")
+        db.close()
+    except Exception as e:
+        logger.warning(f"Failed pgvector sync during index_repository: {e}")
+
     logger.info(f"Indexed {files_indexed} files → {chunks_indexed} chunks for {repo_name}")
     return files_indexed
+
