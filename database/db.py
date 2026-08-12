@@ -11,24 +11,24 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./aegis.db")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-if "sqlite" in DATABASE_URL:
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        echo=False,
-    )
-else:
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
-        echo=False,
-    )
+def _build_engine(url: str):
+    if "sqlite" in url:
+        return create_engine(url, connect_args={"check_same_thread": False}, echo=False)
+    else:
+        try:
+            eng = create_engine(url, pool_pre_ping=True, pool_size=10, max_overflow=20, echo=False)
+            with eng.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            logger.info("Successfully connected to PostgreSQL / Supabase database")
+            return eng
+        except Exception as e:
+            logger.warning(f"PostgreSQL connection failed ({e}). Falling back to local SQLite database (sqlite:///./aegis.db).")
+            return create_engine("sqlite:///./aegis.db", connect_args={"check_same_thread": False}, echo=False)
 
+engine = _build_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
+
 
 
 def get_db():
