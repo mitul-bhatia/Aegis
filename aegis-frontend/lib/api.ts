@@ -36,15 +36,43 @@ export const api = {
   /** Exchange GitHub OAuth code for a session. Backend sets httpOnly cookie. */
   async exchangeGitHubCode(code: string) {
     const redirectUri = `${window.location.origin}/auth/callback`;
-    const res = await fetch(`${API_V1}/auth/github`, getOpts({
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, redirect_uri: redirectUri }),
-    }));
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || "OAuth failed");
+    
+    // Render free instances spin down after inactivity. Vercel will return 504 Gateway Timeout
+    // if Render takes >10s to wake up. We'll retry up to 5 times (50 seconds total).
+    let retries = 5;
+    let res;
+    
+    while (retries > 0) {
+      res = await fetch(`${API_V1}/auth/github`, getOpts({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, redirect_uri: redirectUri }),
+      }));
+      
+      if (res.ok) break; // Success
+      
+      // If it's a 502 Bad Gateway or 504 Gateway Timeout (Render waking up)
+      if (res.status === 502 || res.status === 504) {
+        retries--;
+        if (retries === 0) throw new Error("Backend took too long to wake up. Please try again.");
+        console.log(`Backend is waking up... retrying in 10s. (${retries} retries left)`);
+        await new Promise(r => setTimeout(r, 10000));
+        continue;
+      }
+      
+      // For any other error (400, 401, etc.), try to parse the error message
+      const text = await res.text().catch(() => "");
+      try {
+        const err = JSON.parse(text);
+        throw new Error(err.detail || "OAuth failed");
+      } catch (e) {
+        // If it's HTML/text and not JSON, it's likely a 500 error
+        throw new Error(text.slice(0, 100) || "OAuth failed");
+      }
     }
+    
+    if (!res) throw new Error("OAuth failed");
+
     const user = await res.json() as UserInfo;
     if (typeof window !== "undefined" && user?.id) {
       localStorage.setItem("aegis_user_id", String(user.id));
