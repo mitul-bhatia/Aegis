@@ -30,10 +30,7 @@ GITHUB_APP_ID = os.getenv("GITHUB_APP_ID", "")
 GITHUB_APP_PRIVATE_KEY = os.getenv("GITHUB_APP_PRIVATE_KEY", "")
 
 # ── Redis Task Queue (ARQ / Celery) ──────────────────────
-REDIS_URL = os.getenv(
-    "REDIS_URL",
-    "rediss://default:gQAAAAAAArA4AAIgcDFlZjUxNTgzZDI1ZmE0MmRhYTQ3MDczMTdiNjM3ZWYxOA@splendid-coyote-176184.upstash.io:6379"
-)
+REDIS_URL = os.getenv("REDIS_URL")
 
 
 # ── Remote Docker Sandbox Daemon ─────────────────────────

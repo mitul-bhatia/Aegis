@@ -177,7 +177,11 @@ def _background_index_repo(repo_id: int, full_name: str, github_token: str):
             if pull_result.returncode != 0:
                 raise RuntimeError(f"git pull failed: {pull_result.stderr.strip()}")
         else:
-            clone_url = f"https://x-access-token:{github_token}@github.com/{full_name}.git"
+            if not github_token or github_token == "demo_token":
+                clone_url = f"https://github.com/{full_name}.git"
+            else:
+                clone_url = f"https://x-access-token:{github_token}@github.com/{full_name}.git"
+                
             clone_result = subprocess.run(
                 ["git", "clone", clone_url, repo_path],
                 capture_output=True,

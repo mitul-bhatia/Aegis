@@ -82,9 +82,17 @@ def pre_process_node(state: AegisPipelineState) -> dict:
     db = SessionLocal()
     try:
         repo_obj = db.query(Repo).filter(Repo.full_name == repo_full_name).first()
-        if repo_obj and repo_obj.user:
-            user_token = decrypt_token(repo_obj.user.github_token)
-            clone_url = f"https://x-access-token:{user_token}@github.com/{repo_full_name}.git"
+        if repo_obj:
+            if repo_obj.installation_id:
+                from github_integration.app_auth import get_installation_access_token
+                user_token = get_installation_access_token(repo_obj.installation_id)
+            elif repo_obj.user:
+                user_token = decrypt_token(repo_obj.user.github_token)
+                
+            if user_token and user_token != "demo_token":
+                clone_url = f"https://x-access-token:{user_token}@github.com/{repo_full_name}.git"
+            else:
+                clone_url = f"https://github.com/{repo_full_name}.git"
     finally:
         db.close()
 
