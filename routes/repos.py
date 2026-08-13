@@ -244,6 +244,13 @@ def add_repo(
     # 3. Install webhook - Use backend token (has admin:repo_hook) instead of user OAuth token
     # The user's OAuth token might not have webhook permissions
     webhook_token = config.GITHUB_TOKEN if config.GITHUB_TOKEN else decrypt_token(user.github_token)
+    
+    if webhook_token == "demo_token":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot manually add a repository in Demo Mode. Please click 'Install GitHub App' instead!"
+        )
+        
     webhook_id = _install_webhook(full_name, webhook_token)
 
     # 4. Save to DB
