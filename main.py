@@ -205,6 +205,68 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
 
         return {"message": f"Ignoring PR action: {action}"}
 
+    # Handle GitHub App installations
+    elif event_type in ("installation", "installation_repositories"):
+        payload = json.loads(body)
+        action = payload.get("action", "")
+        installation_id = payload.get("installation", {}).get("id")
+        sender_id = payload.get("sender", {}).get("id")
+        
+        # When an app is created or repos are added, we want to register them
+        if action in ("created", "added"):
+            repositories = payload.get("repositories") or payload.get("repositories_added") or []
+            if not repositories:
+                return {"message": "No repositories in installation payload"}
+                
+            from database.db import SessionLocal
+            from database.models import User, Repo
+            from routes.repos import _background_index_repo
+            
+            db = SessionLocal()
+            try:
+                # Find the user by github ID (the person who installed the app)
+                user = db.query(User).filter(User.github_id == sender_id).first()
+                if not user:
+                    logger.warning(f"GitHub App installed by unknown user (github_id: {sender_id})")
+                    return {"message": "User not found, ignoring installation"}
+                    
+                # Update user's installation ID
+                user.github_installation_id = installation_id
+                
+                for repo_data in repositories:
+                    full_name = repo_data.get("full_name")
+                    existing = db.query(Repo).filter(Repo.full_name == full_name).first()
+                    
+                    if not existing:
+                        repo = Repo(
+                            user_id=user.id,
+                            full_name=full_name,
+                            installation_id=installation_id,
+                            webhook_id=None,  # GitHub Apps don't need manual webhook IDs
+                            is_indexed=False,
+                            status="setting_up",
+                        )
+                        db.add(repo)
+                        db.commit()
+                        db.refresh(repo)
+                        
+                        # Kick off background indexing
+                        background_tasks.add_task(_background_index_repo, repo.id, full_name, "")
+                        logger.info(f"Registered new repo from GitHub App: {full_name}")
+                    else:
+                        existing.installation_id = installation_id
+                        db.commit()
+                        
+                return {"message": f"Processed {len(repositories)} repositories from installation"}
+            finally:
+                db.close()
+                
+        elif action in ("deleted", "removed"):
+            # Handle uninstallation logic if necessary
+            return {"message": "Ignored deletion event (repos remain in DB)"}
+            
+        return {"message": f"Ignoring installation action: {action}"}
+
     else:
         logger.info(f"Ignoring GitHub event type: {event_type}")
         return {"message": f"Ignoring event type: {event_type}"}

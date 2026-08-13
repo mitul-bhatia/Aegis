@@ -15,6 +15,7 @@ def create_pull_request(
     patched_code: str,
     vulnerability_type: str,
     exploit_output: str,
+    github_token: str = None,
 ) -> str:
     """
     Open a GitHub Pull Request with the fixed code and the exploit proof.
@@ -22,7 +23,8 @@ def create_pull_request(
     """
     logger.info(f"Creating PR for {repo_full_name}...")
 
-    g = Github(config.GITHUB_TOKEN)
+    token = github_token if github_token else config.GITHUB_TOKEN
+    g = Github(token)
     repo = g.get_repo(repo_full_name)
 
     random_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
@@ -84,20 +86,15 @@ def post_pr_review(
     vulnerable_file: str | None = None,
     vulnerability_type: str | None = None,
     exploit_output: str | None = None,
+    github_token: str = None,
 ) -> str:
     """
-    Post inline review comments on an existing PR instead of creating a new one.
-
-    For each finding, posts a comment on the specific line with:
-    - Severity badge
-    - Description of the vulnerability
-    - Inline fix suggestion (if patched_code is available for that file)
-
-    Returns the PR URL.
+    Post a review on an existing PR with inline comments containing the fix.
     """
     logger.info(f"Posting PR review on {repo_full_name}#{pr_number}...")
 
-    g = Github(config.GITHUB_TOKEN)
+    token = github_token if github_token else config.GITHUB_TOKEN
+    g = Github(token)
     repo = g.get_repo(repo_full_name)
     pr = repo.get_pull(pr_number)
 
@@ -184,12 +181,13 @@ def post_pr_review(
     return pr.html_url
 
 
-def get_pr_changed_files(repo_full_name: str, pr_number: int) -> list[dict]:
+def get_pr_changed_files(repo_full_name: str, pr_number: int, github_token: str = None) -> list[dict]:
     """
     Fetch the list of files changed in a PR from the GitHub API.
     Returns the same shape as get_diff() changed_files for compatibility.
     """
-    g = Github(config.GITHUB_TOKEN)
+    token = github_token if github_token else config.GITHUB_TOKEN
+    g = Github(token)
     repo = g.get_repo(repo_full_name)
     pr = repo.get_pull(pr_number)
 

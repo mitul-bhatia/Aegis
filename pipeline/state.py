@@ -24,6 +24,7 @@ class AegisPipelineState(TypedDict):
     branch: str                  # e.g. "main"
     push_info: dict              # raw push_info dict from the webhook
     scan_id: int | None       # DB scan record ID (None if repo not in DB)
+    github_token: str | None  # GitHub App installation token or user OAuth token
 
     # ── Pre-processing results ────────────────────────────
     local_repo_path: str         # absolute path to cloned repo on disk

@@ -155,6 +155,7 @@ def pre_process_node(state: AegisPipelineState) -> dict:
             "diff": diff,
             "semgrep_findings": [],
             "rag_context": "",
+            "github_token": user_token,
             "pipeline_status": "clean",
         }
 
@@ -173,6 +174,7 @@ def pre_process_node(state: AegisPipelineState) -> dict:
             "diff": diff,
             "semgrep_findings": [],
             "rag_context": "",
+            "github_token": user_token,
             "pipeline_status": "clean",
         }
 
@@ -205,6 +207,7 @@ def pre_process_node(state: AegisPipelineState) -> dict:
         "semgrep_findings": semgrep_findings,
         "rag_context": rag_context,
         "dependency_vulns": dep_vulns,
+        "github_token": user_token,
         "pipeline_status": "scanning",
     }
 
@@ -536,6 +539,7 @@ def pr_creator_node(state: AegisPipelineState) -> dict:
                 vulnerable_file=vuln_file,
                 vulnerability_type=vuln_type,
                 exploit_output=vuln.get("exploit_output"),
+                github_token=state.get("github_token"),
             )
             logger.info(f"PR review posted: {pr_url}")
         else:
@@ -547,6 +551,7 @@ def pr_creator_node(state: AegisPipelineState) -> dict:
                 patched_code=state["patched_code"],
                 vulnerability_type=vuln_type,
                 exploit_output=vuln["exploit_output"],
+                github_token=state.get("github_token"),
             )
             logger.info(f"PR opened: {pr_url}")
 

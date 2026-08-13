@@ -161,6 +161,11 @@ def _background_index_repo(repo_id: int, full_name: str, github_token: str):
         import os
         import subprocess
         repo_path = os.path.join(config.REPOS_DIR, full_name.replace("/", "_"))
+        
+        # Override token if this repo is managed via a GitHub App Installation
+        if repo.installation_id:
+            from github_integration.app_auth import get_installation_access_token
+            github_token = get_installation_access_token(repo.installation_id)
 
         if os.path.exists(repo_path):
             pull_result = subprocess.run(
