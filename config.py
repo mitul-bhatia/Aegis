@@ -17,7 +17,7 @@ load_dotenv()
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 GROQ_API_KEY    = os.getenv("GROQ_API_KEY", "")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
-GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
+GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "aegis_default_webhook_secret_2026")
 
 # ── Token Encryption ──────────────────────────────────────
 # Used to encrypt GitHub tokens before storing them in the database.
