@@ -181,8 +181,11 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
                 github_id=999999,
                 github_username="demo-user",
                 github_avatar_url="https://avatars.githubusercontent.com/u/999999?v=4",
-                github_token="demo_token",
+                github_token=encrypt_token("demo_token"),
             )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
         else:
             raise HTTPException(status_code=401, detail="User not found")
 
