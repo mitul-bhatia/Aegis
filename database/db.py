@@ -49,11 +49,31 @@ def init_db():
         from alembic.config import Config
         from alembic import command
         
+        # Enable pgvector extension if Postgres (must happen before creating tables)
+        if engine.dialect.name == "postgresql":
+            with engine.connect() as conn:
+                from sqlalchemy import text
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+                conn.commit()
+
         alembic_cfg = Config("alembic.ini")
-        alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+        # configparser uses % for interpolation. Escape any % in password as %%
+        safe_url = DATABASE_URL.replace("%", "%%")
+        alembic_cfg.set_main_option("sqlalchemy.url", safe_url)
         command.upgrade(alembic_cfg, "head")
         logger.info("Database migrations applied successfully")
     except Exception as e:
         logger.warning(f"Alembic migration auto-upgrade warning: {e}. Ensuring tables with metadata.create_all.")
+        
+        # Fallback for pgvector if Alembic fails
+        if engine.dialect.name == "postgresql":
+            try:
+                with engine.connect() as conn:
+                    from sqlalchemy import text
+                    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+                    conn.commit()
+            except Exception as ext_err:
+                logger.warning(f"Failed to create vector extension: {ext_err}")
+                
         Base.metadata.create_all(bind=engine)
 
