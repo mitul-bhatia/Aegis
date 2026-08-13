@@ -10,10 +10,7 @@ const nextConfig = {
   
   // Rewrites to proxy API requests directly to backend, avoiding CORS and cross-domain cookie issues
   async rewrites() {
-    let backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://aegis-backend-kiw7.onrender.com';
-    if (!backendUrl.startsWith('http')) {
-      backendUrl = `https://${backendUrl}`;
-    }
+    const backendUrl = 'https://aegis-backend-kiw7.onrender.com';
     const cleanUrl = backendUrl.replace(/\/$/, '');
     return [
       {
