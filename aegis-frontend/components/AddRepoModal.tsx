@@ -164,7 +164,7 @@ export function AddRepoModal({
 
             <div className="grid grid-cols-2 gap-2">
               <a
-                href="https://github.com/apps/aegis-security/installations/new"
+                href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || 'aegis-security'}/installations/new`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-xs font-mono text-foreground hover:bg-accent hover:text-accent-foreground text-center"
