@@ -258,6 +258,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         github_id=user.github_id,
         github_username=user.github_username,
         github_avatar_url=user.github_avatar_url,
+        github_installation_id=user.github_installation_id,
     )
 
 

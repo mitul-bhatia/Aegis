@@ -179,7 +179,7 @@ export function AddRepoModal({
                   index and scan future commits automatically.
                 </p>
                 <a
-                  href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security"}/installations/new`}
+                  href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-defensibility-system"}/installations/new`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -201,7 +201,7 @@ export function AddRepoModal({
                   <div className="text-center p-4 border rounded-md">
                     <p className="text-sm text-muted-foreground mb-4">No repositories found. Ensure you granted access during installation.</p>
                     <a
-                      href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security"}/installations/new`}
+                      href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-defensibility-system"}/installations/new`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-primary hover:underline"
@@ -228,7 +228,7 @@ export function AddRepoModal({
                 )}
                 <div className="text-center pt-2">
                     <a
-                      href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security"}/installations/new`}
+                      href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-defensibility-system"}/installations/new`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-muted-foreground hover:underline"

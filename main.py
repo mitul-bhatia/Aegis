@@ -220,7 +220,6 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
                 
             from database.db import SessionLocal
             from database.models import User, Repo
-            from routes.repos import _background_index_repo
             
             db = SessionLocal()
             try:

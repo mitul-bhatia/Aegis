@@ -270,8 +270,16 @@ def add_repo(
     db.commit()
     db.refresh(repo)
 
-    # 5. Background RAG index — pass empty token because it will use installation token
-    background_tasks.add_task(_background_index_repo, repo.id, full_name, decrypt_token(user.github_token))
+    # 5. Background RAG index
+    # If using GitHub App, the background task will use the installation token automatically.
+    # Only pass the user's OAuth token if we're NOT using the App flow.
+    clone_token = ""
+    if not user.github_installation_id:
+        try:
+            clone_token = decrypt_token(user.github_token)
+        except Exception:
+            clone_token = ""
+    background_tasks.add_task(_background_index_repo, repo.id, full_name, clone_token)
 
     logger.info(f"Repo {full_name} added for user {user.github_username} — indexing in background")
 
