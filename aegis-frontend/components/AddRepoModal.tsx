@@ -10,14 +10,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Plus,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react";
+import { Plus, Loader2, CheckCircle2 } from "lucide-react";
 import { api } from "@/lib/api";
 
-type ProgressState = "idle" | "validating" | "webhook" | "indexing" | "complete" | "error";
+type ProgressState =
+  "idle" | "validating" | "webhook" | "indexing" | "complete" | "error";
 
 export function AddRepoModal({
   userId,
@@ -113,7 +110,11 @@ export function AddRepoModal({
 
   function handleOpenChange(isOpen: boolean) {
     if (!isOpen) {
-      if (state === "validating" || state === "webhook" || state === "indexing") {
+      if (
+        state === "validating" ||
+        state === "webhook" ||
+        state === "indexing"
+      ) {
         return; // Prevent closing while processing
       }
       setOpen(false);
@@ -140,61 +141,52 @@ export function AddRepoModal({
         </DialogHeader>
 
         {state === "idle" || state === "error" ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Input
-                placeholder="github.com/owner/repo"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={state !== "idle"}
-                className="font-mono text-sm"
-              />
-              <p className="mt-2 text-xs text-muted-foreground">
-                Paste any GitHub repo URL. Aegis will install a webhook and start monitoring.
+          <div className="space-y-4 text-center">
+            <div className="rounded-lg bg-muted p-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                To monitor a repository, you must install the Aegis GitHub App.
+                This gives Aegis secure access to your code to build the RAG
+                index and scan future commits automatically.
               </p>
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={!url}>
-              Start Monitoring
-            </Button>
-
-            <div className="relative my-4 text-center text-xs text-muted-foreground before:absolute before:inset-0 before:top-1/2 before:border-t before:border-border">
-              <span className="relative bg-background px-2">OR QUICK ACTIONS</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
+              {error && (
+                <p className="text-sm text-destructive mb-4">{error}</p>
+              )}
               <a
-                href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || 'aegis-security'}/installations/new`}
+                href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security"}/installations/new`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-xs font-mono text-foreground hover:bg-accent hover:text-accent-foreground text-center"
+                className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 📦 Install GitHub App
               </a>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    setState("validating");
-                    await api.seedDemoRepo(userId);
-                    setState("complete");
-                    setTimeout(() => {
-                      setOpen(false);
-                      onSuccess();
-                      setState("idle");
-                    }, 1000);
-                  } catch (err: any) {
-                    setState("error");
-                    setError(err.message || "Failed to seed demo repo");
-                  }
-                }}
-                className="inline-flex items-center justify-center rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-mono text-green-400 hover:bg-green-500/20"
-              >
-                ⚡ Load Showcase Repo
-              </button>
             </div>
-          </form>
 
+            <div className="relative my-4 text-center text-xs text-muted-foreground before:absolute before:inset-0 before:top-1/2 before:border-t before:border-border">
+              <span className="relative bg-background px-2">OR TRY IT OUT</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  setState("validating");
+                  await api.seedDemoRepo(userId);
+                  setState("complete");
+                  setTimeout(() => {
+                    setOpen(false);
+                    onSuccess();
+                    setState("idle");
+                  }, 1000);
+                } catch (err: any) {
+                  setState("error");
+                  setError(err.message || "Failed to seed demo repo");
+                }
+              }}
+              className="inline-flex w-full items-center justify-center rounded-md border border-green-500/30 bg-green-500/10 px-4 py-2 text-sm font-medium text-green-400 hover:bg-green-500/20"
+            >
+              ⚡ Load Showcase Repo
+            </button>
+          </div>
         ) : (
           <div className="space-y-6 py-4">
             {/* Progress steps */}
