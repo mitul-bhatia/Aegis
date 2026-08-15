@@ -35,6 +35,7 @@ class UserResponse(BaseModel):
     github_id: int
     github_username: str
     github_avatar_url: str
+    github_installation_id: int | None = None
 
 
 @router.post("/github", response_model=UserResponse)
@@ -144,6 +145,7 @@ def github_oauth_callback(
         github_id=user.github_id,
         github_username=user.github_username,
         github_avatar_url=user.github_avatar_url,
+        github_installation_id=user.github_installation_id,
     )
 
 
@@ -194,6 +196,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
         github_id=user.github_id,
         github_username=user.github_username,
         github_avatar_url=user.github_avatar_url,
+        github_installation_id=user.github_installation_id,
     )
 
 

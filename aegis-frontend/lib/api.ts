@@ -175,6 +175,13 @@ export const api = {
 
   // ── Repos ─────────────────────────────────────────────
 
+  async getAvailableRepos(userId: number) {
+    const params = new URLSearchParams({ user_id: String(userId) });
+    const res = await fetchWithRetry(`${API_V1}/repos/available?${params}`, getOpts());
+    if (!res.ok) throw new Error("Failed to fetch available repos");
+    return res.json();
+  },
+
   async addRepo(userId: number, repoUrl: string) {
     const res = await fetchWithRetry(
       `${API_V1}/repos`,
@@ -417,6 +424,7 @@ export type UserInfo = {
   github_id: number;
   github_username: string;
   github_avatar_url: string;
+  github_installation_id?: number | null;
 };
 
 export type RepoInfo = {

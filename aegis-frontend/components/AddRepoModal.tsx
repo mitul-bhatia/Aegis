@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +9,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Loader2, CheckCircle2 } from "lucide-react";
-import { api } from "@/lib/api";
+import { Plus, Loader2, CheckCircle2, RefreshCw } from "lucide-react";
+import { api, UserInfo } from "@/lib/api";
 
 type ProgressState =
-  "idle" | "validating" | "webhook" | "indexing" | "complete" | "error";
+  | "idle"
+  | "fetching"
+  | "validating"
+  | "webhook"
+  | "indexing"
+  | "complete"
+  | "error";
 
 export function AddRepoModal({
   userId,
@@ -27,8 +32,13 @@ export function AddRepoModal({
   forceOpen?: boolean;
   onForceOpenHandled?: () => void;
 }) {
-  const [url, setUrl] = useState("");
   const [open, setOpen] = useState(false);
+  const [state, setState] = useState<ProgressState>("idle");
+  const [error, setError] = useState("");
+  const [repoId, setRepoId] = useState<number | null>(null);
+  
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [availableRepos, setAvailableRepos] = useState<any[]>([]);
 
   useEffect(() => {
     if (forceOpen) {
@@ -36,9 +46,29 @@ export function AddRepoModal({
       onForceOpenHandled?.();
     }
   }, [forceOpen, onForceOpenHandled]);
-  const [state, setState] = useState<ProgressState>("idle");
-  const [error, setError] = useState("");
-  const [repoId, setRepoId] = useState<number | null>(null);
+  
+  useEffect(() => {
+    if (open) {
+      loadData();
+    }
+  }, [open, userId]);
+
+  async function loadData() {
+    setState("fetching");
+    try {
+      const u = await api.getMe();
+      setUser(u);
+      
+      if (u?.github_installation_id) {
+        const repos = await api.getAvailableRepos(userId);
+        setAvailableRepos(repos.data || []);
+      }
+      setState("idle");
+    } catch (err: any) {
+      setError("Failed to load user or repositories");
+      setState("error");
+    }
+  }
 
   // Poll repo status when indexing
   useEffect(() => {
@@ -53,9 +83,7 @@ export function AddRepoModal({
           setTimeout(() => {
             setOpen(false);
             onSuccess();
-            // Reset state
             setState("idle");
-            setUrl("");
             setRepoId(null);
           }, 1500);
         }
@@ -67,26 +95,18 @@ export function AddRepoModal({
     return () => clearInterval(interval);
   }, [state, repoId, onSuccess]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleMonitorRepo(repoUrl: string) {
     setError("");
-
     try {
-      // Step 1: Validating
       setState("validating");
       await new Promise((resolve) => setTimeout(resolve, 400));
 
-      // Step 2: Installing webhook + saving repo
       setState("webhook");
-      const result = await api.addRepo(userId, url);
+      const result = await api.addRepo(userId, repoUrl);
       setRepoId(result.id);
 
-      // Step 3: Indexing — show progress while background RAG indexing runs.
-      // The polling useEffect above will auto-transition to "complete" once indexed.
       setState("indexing");
 
-      // Safety timeout: if indexing takes >30s, close the modal anyway.
-      // The indexing continues in the background and the dashboard shows "Setting Up".
       setTimeout(() => {
         setState((prev) => {
           if (prev === "indexing") {
@@ -94,7 +114,6 @@ export function AddRepoModal({
               setOpen(false);
               onSuccess();
               setState("idle");
-              setUrl("");
               setRepoId(null);
             }, 500);
             return "complete";
@@ -119,7 +138,6 @@ export function AddRepoModal({
       }
       setOpen(false);
       setState("idle");
-      setUrl("");
       setError("");
       setRepoId(null);
     } else {
@@ -129,63 +147,125 @@ export function AddRepoModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger>
+      <DialogTrigger asChild>
         <Button className="gap-2 aegis-glow">
           <Plus className="h-4 w-4" />
           Monitor Repo
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add a Repository</DialogTitle>
         </DialogHeader>
 
-        {state === "idle" || state === "error" ? (
-          <div className="space-y-4 text-center">
-            <div className="rounded-lg bg-slate-800 p-4 border border-slate-700">
-              <p className="text-sm text-slate-300 mb-4">
-                To monitor a repository, you must install the Aegis GitHub App.
-                This gives Aegis secure access to your code to build the RAG
-                index and scan future commits automatically.
-              </p>
-              {error && (
-                <p className="text-sm text-destructive mb-4">{error}</p>
-              )}
-              <a
-                href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security"}/installations/new`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                📦 Install GitHub App
-              </a>
-            </div>
+        {state === "fetching" ? (
+          <div className="flex justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : state === "idle" || state === "error" ? (
+          <div className="space-y-4">
+            {error && (
+              <p className="text-sm text-destructive mb-4 text-center">{error}</p>
+            )}
+            
+            {!user?.github_installation_id ? (
+              // User has not installed the GitHub App
+              <div className="rounded-lg bg-slate-800 p-4 border border-slate-700 text-center">
+                <p className="text-sm text-slate-300 mb-4">
+                  To monitor a repository, you must install the Aegis GitHub App.
+                  This gives Aegis secure access to your code to build the RAG
+                  index and scan future commits automatically.
+                </p>
+                <a
+                  href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security"}/installations/new`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  📦 Install GitHub App
+                </a>
+              </div>
+            ) : (
+              // User HAS installed the GitHub App, show available repos
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">Select a repository to start monitoring:</p>
+                  <Button variant="ghost" size="icon" onClick={loadData}>
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {availableRepos.length === 0 ? (
+                  <div className="text-center p-4 border rounded-md">
+                    <p className="text-sm text-muted-foreground mb-4">No repositories found. Ensure you granted access during installation.</p>
+                    <a
+                      href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security"}/installations/new`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Manage GitHub App Access
+                    </a>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {availableRepos.map((repo) => (
+                      <div key={repo.id} className="flex items-center justify-between p-3 border rounded-md">
+                        <div>
+                          <p className="text-sm font-medium">{repo.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{repo.private ? "Private" : "Public"}</p>
+                        </div>
+                        {repo.is_monitored ? (
+                          <Button disabled variant="outline" size="sm">Monitored</Button>
+                        ) : (
+                          <Button size="sm" onClick={() => handleMonitorRepo(repo.full_name)}>Monitor</Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="text-center pt-2">
+                    <a
+                      href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security"}/installations/new`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-muted-foreground hover:underline"
+                    >
+                      Manage GitHub App Access
+                    </a>
+                </div>
+              </div>
+            )}
 
-            <div className="relative my-4 text-center text-xs text-muted-foreground before:absolute before:inset-0 before:top-1/2 before:border-t before:border-border">
-              <span className="relative bg-background px-2">OR TRY IT OUT</span>
-            </div>
+            {!user?.github_installation_id && (
+              <>
+                <div className="relative my-4 text-center text-xs text-muted-foreground before:absolute before:inset-0 before:top-1/2 before:border-t before:border-border">
+                  <span className="relative bg-background px-2">OR TRY IT OUT</span>
+                </div>
 
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  setState("validating");
-                  await api.seedDemoRepo(userId);
-                  setState("complete");
-                  setTimeout(() => {
-                    setOpen(false);
-                    onSuccess();
-                    setState("idle");
-                  }, 1000);
-                } catch (err: any) {
-                  setState("error");
-                  setError(err.message || "Failed to seed demo repo");
-                }
-              }}
-              className="inline-flex w-full items-center justify-center rounded-md border border-green-500/30 bg-green-500/10 px-4 py-2 text-sm font-medium text-green-400 hover:bg-green-500/20"
-            >
-              ⚡ Load Showcase Repo
-            </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setState("validating");
+                      await api.seedDemoRepo(userId);
+                      setState("complete");
+                      setTimeout(() => {
+                        setOpen(false);
+                        onSuccess();
+                        setState("idle");
+                      }, 1000);
+                    } catch (err: any) {
+                      setState("error");
+                      setError(err.message || "Failed to seed demo repo");
+                    }
+                  }}
+                  className="inline-flex w-full items-center justify-center rounded-md border border-green-500/30 bg-green-500/10 px-4 py-2 text-sm font-medium text-green-400 hover:bg-green-500/20"
+                >
+                  ⚡ Load Showcase Repo
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-6 py-4">

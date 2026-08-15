@@ -241,22 +241,27 @@ def add_repo(
     if existing:
         raise HTTPException(status_code=409, detail=f"Repo '{full_name}' is already being monitored")
 
-    # 3. Install webhook - Use backend token (has admin:repo_hook) instead of user OAuth token
-    # The user's OAuth token might not have webhook permissions
-    webhook_token = config.GITHUB_TOKEN if config.GITHUB_TOKEN else decrypt_token(user.github_token)
-    
-    if webhook_token == "demo_token":
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot manually add a repository in Demo Mode. Please click 'Install GitHub App' instead!"
-        )
+    # 3. Install webhook if not using GitHub App
+    webhook_id = None
+    if user.github_installation_id:
+        logger.info(f"Using GitHub App installation {user.github_installation_id} for {full_name}")
+    else:
+        # Fallback to manual webhook installation via personal token
+        webhook_token = config.GITHUB_TOKEN if config.GITHUB_TOKEN else decrypt_token(user.github_token)
         
-    webhook_id = _install_webhook(full_name, webhook_token)
+        if webhook_token == "demo_token":
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot manually add a repository in Demo Mode. Please click 'Install GitHub App' instead!"
+            )
+            
+        webhook_id = _install_webhook(full_name, webhook_token)
 
     # 4. Save to DB
     repo = Repo(
         user_id=user.id,
         full_name=full_name,
+        installation_id=user.github_installation_id,
         webhook_id=webhook_id,
         is_indexed=False,
         status="setting_up",
@@ -265,7 +270,7 @@ def add_repo(
     db.commit()
     db.refresh(repo)
 
-    # 5. Background RAG index — pass the decrypted token so git clone works
+    # 5. Background RAG index — pass empty token because it will use installation token
     background_tasks.add_task(_background_index_repo, repo.id, full_name, decrypt_token(user.github_token))
 
     logger.info(f"Repo {full_name} added for user {user.github_username} — indexing in background")
@@ -278,6 +283,57 @@ def add_repo(
         status=repo.status,
         created_at=str(repo.created_at),
     )
+
+
+
+@router.get("/available")
+def list_available_repos(user_id: int, db: Session = Depends(get_db)):
+    """
+    List all repositories the user has granted access to via the GitHub App.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if not user.github_installation_id:
+        return {"data": []}
+        
+    try:
+        from github_integration.app_auth import get_installation_access_token
+        import requests
+        
+        token = get_installation_access_token(user.github_installation_id)
+        if not token:
+            return {"data": []}
+            
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        response = requests.get("https://api.github.com/installation/repositories", headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        repos = response.json().get("repositories", [])
+        
+        # Filter out repos that are already being monitored
+        existing_repos = {r.full_name for r in db.query(Repo).filter(Repo.user_id == user.id).all()}
+        
+        available = []
+        for r in repos:
+            full_name = r.get("full_name")
+            available.append({
+                "id": r.get("id"),
+                "name": r.get("name"),
+                "full_name": full_name,
+                "private": r.get("private"),
+                "is_monitored": full_name in existing_repos
+            })
+            
+        return {"data": available}
+    except Exception as e:
+        logger.error(f"Failed to fetch available repos for user {user.id}: {e}")
+        return {"data": [], "error": str(e)}
 
 
 @router.get("")
