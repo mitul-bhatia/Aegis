@@ -1,51 +1,58 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
-  
+  output: "standalone",
+
   // Environment variables
   env: {
-    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://aegis-backend-kiw7.onrender.com',
-    NEXT_PUBLIC_GITHUB_CLIENT_ID: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || process.env.GITHUB_CLIENT_ID || 'Ov23li7vdknIS2ZtxxOH',
+    NEXT_PUBLIC_BACKEND_URL:
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      "https://aegis-backend-kiw7.onrender.com",
+    NEXT_PUBLIC_GITHUB_CLIENT_ID:
+      process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID ||
+      process.env.GITHUB_CLIENT_ID ||
+      "Ov23li7vdknIS2ZtxxOH",
+    NEXT_PUBLIC_GITHUB_APP_NAME:
+      process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "aegis-security",
   },
-  
+
   // Rewrites to proxy API requests directly to backend, avoiding CORS and cross-domain cookie issues
   async rewrites() {
-    const backendUrl = 'https://aegis-backend-kiw7.onrender.com';
-    const cleanUrl = backendUrl.replace(/\/$/, '');
+    const backendUrl = "https://aegis-backend-kiw7.onrender.com";
+    const cleanUrl = backendUrl.replace(/\/$/, "");
     return [
       {
-        source: '/api/v1/:path*',
+        source: "/api/v1/:path*",
         destination: `${cleanUrl}/api/v1/:path*`,
       },
       {
-        source: '/webhook/:path*',
+        source: "/webhook/:path*",
         destination: `${cleanUrl}/webhook/:path*`,
       },
       {
-        source: '/health',
+        source: "/health",
         destination: `${cleanUrl}/health`,
       },
     ];
   },
-  
+
   // Vercel-specific optimizations
   experimental: {
     optimizeCss: true,
   },
-  
+
   // Image optimization
   images: {
-    domains: ['avatars.githubusercontent.com'],
+    domains: ["avatars.githubusercontent.com"],
   },
-  
+
   // Disable x-powered-by header
   poweredByHeader: false,
-  
+
   // Compression
   compress: true,
-  
+
   // React strict mode
   reactStrictMode: true,
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
