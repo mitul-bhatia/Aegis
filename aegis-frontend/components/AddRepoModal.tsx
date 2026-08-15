@@ -142,8 +142,8 @@ export function AddRepoModal({
 
         {state === "idle" || state === "error" ? (
           <div className="space-y-4 text-center">
-            <div className="rounded-lg bg-muted p-4">
-              <p className="text-sm text-muted-foreground mb-4">
+            <div className="rounded-lg bg-slate-800 p-4 border border-slate-700">
+              <p className="text-sm text-slate-300 mb-4">
                 To monitor a repository, you must install the Aegis GitHub App.
                 This gives Aegis secure access to your code to build the RAG
                 index and scan future commits automatically.
