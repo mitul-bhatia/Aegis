@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-no-comment-textnodes */
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -200,6 +201,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!sessionReady) return;
     if (!userId) { router.push("/"); return; }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData().finally(() => setLoading(false));
     const es = api.connectLiveFeed((scanData) => {
       setScans((prev) => {

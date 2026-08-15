@@ -17,7 +17,7 @@ export function notifyScanComplete(scan: ScanInfo) {
 
   let title: string;
   let body: string;
-  let icon = "/favicon.ico";
+  const icon = "/favicon.ico";
 
   switch (scan.status) {
     case "fixed":
@@ -161,6 +161,7 @@ export function NotificationToggle() {
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPermission(Notification.permission);
     }
   }, []);

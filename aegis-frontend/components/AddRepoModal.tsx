@@ -38,10 +38,11 @@ export function AddRepoModal({
   const [repoId, setRepoId] = useState<number | null>(null);
   
   const [user, setUser] = useState<UserInfo | null>(null);
-  const [availableRepos, setAvailableRepos] = useState<any[]>([]);
+  const [availableRepos, setAvailableRepos] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
     if (forceOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpen(true);
       onForceOpenHandled?.();
     }
@@ -64,7 +65,7 @@ export function AddRepoModal({
         setAvailableRepos(repos.data || []);
       }
       setState("idle");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError("Failed to load user or repositories");
       setState("error");
     }
@@ -141,6 +142,7 @@ export function AddRepoModal({
       setError("");
       setRepoId(null);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpen(true);
     }
   }
@@ -255,9 +257,13 @@ export function AddRepoModal({
                         onSuccess();
                         setState("idle");
                       }, 1000);
-                    } catch (err: any) {
+                    } catch (err: unknown) {
                       setState("error");
-                      setError(err.message || "Failed to seed demo repo");
+                      if (err instanceof Error) {
+                        setError(err.message || "Failed to seed demo repo");
+                      } else {
+                        setError("Failed to seed demo repo");
+                      }
                     }
                   }}
                   className="inline-flex w-full items-center justify-center rounded-md border border-green-500/30 bg-green-500/10 px-4 py-2 text-sm font-medium text-green-400 hover:bg-green-500/20"
