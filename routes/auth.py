@@ -200,6 +200,28 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
     )
 
 
+
+class InstallationRequest(BaseModel):
+    user_id: int
+    installation_id: int
+
+@router.post("/installation")
+def link_installation(body: InstallationRequest, db: Session = Depends(get_db)):
+    """
+    Robustly link a GitHub App installation ID to a user manually from the frontend,
+    bypassing webhook unreliability.
+    """
+    user = db.query(User).filter(User.id == body.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    user.github_installation_id = body.installation_id
+    db.commit()
+    
+    logger.info(f"Manually linked installation {body.installation_id} to user {user.github_username} ({user.id})")
+    
+    return {"message": "Installation linked successfully", "installation_id": body.installation_id}
+
 @router.post("/logout")
 def logout(request: Request, response: Response):
     """

@@ -175,6 +175,19 @@ export const api = {
 
   // ── Repos ─────────────────────────────────────────────
 
+  async linkInstallation(userId: number, installationId: number) {
+    const res = await fetchWithRetry(
+      `${API_V1}/auth/installation`,
+      getOpts({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, installation_id: installationId }),
+      }),
+    );
+    if (!res.ok) throw new Error("Failed to link installation");
+    return res.json();
+  },
+
   async getAvailableRepos(userId: number) {
     const params = new URLSearchParams({ user_id: String(userId) });
     const res = await fetchWithRetry(`${API_V1}/repos/available?${params}`, getOpts());

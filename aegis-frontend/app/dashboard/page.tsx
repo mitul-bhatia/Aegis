@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, type RepoInfo, type ScanInfo, type ScanStatus, type StatsInfo, isActiveScan } from "@/lib/api";
 import { AddRepoModal } from "@/components/AddRepoModal";
@@ -168,6 +168,29 @@ export default function DashboardPage() {
   const [openAddRepo, setOpenAddRepo] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchText, setSearchText] = useState("");
+
+  const searchParams = useSearchParams();
+  const installationId = searchParams.get("installation_id");
+  const setupAction = searchParams.get("setup_action");
+
+  useEffect(() => {
+    if (sessionReady && userId && installationId && setupAction === "install") {
+      // User just returned from installing the GitHub app!
+      console.log("Found installation ID in URL, linking to user...");
+      api.linkInstallation(userId, parseInt(installationId))
+        .then(() => {
+          // Clean up the URL
+          router.replace("/dashboard");
+          // Re-fetch user so github_installation_id is populated
+          api.getMe().then(u => {
+             // Force open the Add Repo modal now that it's linked
+             setOpenAddRepo(true);
+          });
+        })
+        .catch(err => console.error("Failed to link installation:", err));
+    }
+  }, [sessionReady, userId, installationId, setupAction, router]);
+
 
   useEffect(() => {
     api.getMe().then((user) => {
