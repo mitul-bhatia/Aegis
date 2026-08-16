@@ -174,7 +174,7 @@ function DashboardContent() {
   const setupAction = searchParams.get("setup_action");
 
   useEffect(() => {
-    if (sessionReady && userId && installationId && setupAction === "install") {
+    if (sessionReady && userId && installationId && (setupAction === "install" || setupAction === "update")) {
       // User just returned from installing the GitHub app!
       console.log("Found installation ID in URL, linking to user...");
       api.linkInstallation(userId, parseInt(installationId))
