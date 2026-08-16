@@ -33,8 +33,19 @@ def generate_app_jwt() -> str:
         "iss": str(config.GITHUB_APP_ID),
     }
 
-    # Standardize PEM key formatting if single line string with \n
+    # Fix flattened PEM keys (from env vars with spaces instead of newlines)
     private_key = config.GITHUB_APP_PRIVATE_KEY.replace("\\n", "\n")
+    if "\n" not in private_key or len(private_key.split("\n")) <= 3:
+        import re
+        header_match = re.search(r"(-----BEGIN [^-]+-----)", private_key)
+        footer_match = re.search(r"(-----END [^-]+-----)", private_key)
+        if header_match and footer_match:
+            header = header_match.group(1)
+            footer = footer_match.group(1)
+            content = private_key[private_key.find(header) + len(header) : private_key.find(footer)]
+            content = re.sub(r"\s+", "", content)
+            lines = [content[i:i+64] for i in range(0, len(content), 64)]
+            private_key = f"{header}\n" + "\n".join(lines) + f"\n{footer}\n"
 
     encoded_jwt = jwt.encode(payload, private_key, algorithm="RS256")
     return encoded_jwt
