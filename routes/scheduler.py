@@ -13,7 +13,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from scheduler import scheduler
+from scheduler_module.intelligent_scheduler import intelligent_scheduler as scheduler
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/scheduler", tags=["scheduler"])
@@ -67,6 +67,6 @@ async def trigger_scan_now():
     if scheduler.running:
         raise HTTPException(status_code=400, detail="Cannot trigger manual scan while scheduler is running")
     
-    await scheduler._scan_all_repos()
+    await scheduler.scan_all_repos()
     logger.info("⚡ Manual scan triggered via API")
     return {"message": "Manual scan triggered"}

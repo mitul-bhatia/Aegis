@@ -73,6 +73,10 @@ class IntelligentScheduler:
         self.background_task = asyncio.create_task(self._run_intelligent_scheduler())
         asyncio.create_task(self._threat_monitoring_loop())
         asyncio.create_task(self._learning_loop())
+        
+        # Keep Render instance awake
+        if os.getenv("RENDER"):
+            asyncio.create_task(self._ping_loop())
     
     async def stop(self):
         """Stop the intelligent scheduler"""
@@ -80,7 +84,39 @@ class IntelligentScheduler:
         if self.background_task:
             self.background_task.cancel()
             logger.info("🛑 Intelligent Scheduler stopped")
-    
+
+    async def _ping_loop(self):
+        """
+        Pings the backend's /health endpoint every 14 minutes.
+        Render's free tier spins down after 15 minutes of inactivity.
+        This keeps the instance awake so Vercel proxies and webhooks don't timeout.
+        """
+        import httpx
+        url = f"{config.BACKEND_URL.rstrip('/')}/health"
+        logger.info(f"⏰ Starting self-ping loop for {url}")
+        
+        while self.running:
+            try:
+                # Wait 14 minutes
+                await asyncio.sleep(14 * 60)
+                async with httpx.AsyncClient() as client:
+                    await client.get(url, timeout=5)
+                logger.debug("Successfully pinged backend to keep it awake")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug(f"Self-ping failed: {e}")
+
+    async def scan_all_repos(self):
+        """Manually trigger scan for all indexed repositories."""
+        logger.info("⚡ Manual scan of all repositories triggered via API")
+        try:
+            repos_with_context = await self._analyze_repositories()
+            for repo_context in repos_with_context:
+                await self._execute_intelligent_scan(repo_context)
+        except Exception as e:
+            logger.error(f"Error during manual scan_all_repos: {e}")
+
     async def _run_intelligent_scheduler(self):
         """Main intelligent scheduling loop"""
         while self.running:

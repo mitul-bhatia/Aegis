@@ -1,1 +1,1 @@
-from notifications.notifier import notify_scan_event
+from notifications.alert_manager import notify_scan_event, ScanEvent

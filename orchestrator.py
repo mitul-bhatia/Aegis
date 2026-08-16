@@ -179,7 +179,7 @@ def _maybe_notify(scan: Scan):
         return
 
     try:
-        from notifications.notifier import notify_scan_event, ScanEvent
+        from notifications.alert_manager import notify_scan_event, ScanEvent, ScanEvent
 
         # Build the deep-link URL to the scan detail page
         scan_url = f"{config.FRONTEND_URL}/scans/{scan.id}"

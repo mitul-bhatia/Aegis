@@ -20,7 +20,7 @@ from routes.scheduler import router as scheduler_router
 from routes.intelligence import router as intelligence_router
 from routes.export import router as export_router
 from routes.analytics import router as analytics_router
-from scheduler import start_autonomous_scheduler, stop_autonomous_scheduler
+from scheduler_module.intelligent_scheduler import start_intelligent_scheduler as start_autonomous_scheduler, stop_intelligent_scheduler as stop_autonomous_scheduler
 
 # Initialize configuration
 config.setup_logging()

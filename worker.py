@@ -14,7 +14,7 @@ import redis
 
 import config
 from orchestrator import run_aegis_pipeline
-from notifications.alert_manager import send_scan_alert
+from notifications.alert_manager import notify_scan_event, ScanEvent
 
 logger = logging.getLogger(__name__)
 
@@ -85,15 +85,19 @@ def start_worker():
                 elapsed = time.time() - start_t
                 logger.info(f"✅ Worker successfully completed scan for {repo_name} @ {commit_sha} in {elapsed:.1f}s")
                 
-                # Send Slack / Discord alerts on completion if vulnerability fixed
                 if result and isinstance(result, dict) and result.get("pr_url"):
-                    send_scan_alert(
+                    event = ScanEvent(
+                        scan_id=0,  # worker doesn't have scan_id directly here
                         repo_name=repo_name,
+                        status="fixed",
                         vulnerability_type=result.get("vulnerability_type", "Security Bug"),
                         severity=result.get("severity", "HIGH"),
                         vulnerable_file=result.get("vulnerable_file", "Codebase"),
                         pr_url=result.get("pr_url"),
+                        error_message=None,
+                        scan_url=f"{config.FRONTEND_URL}/dashboard"
                     )
+                    notify_scan_event(event)
             except Exception as e:
                 elapsed = time.time() - start_t
                 logger.error(f"❌ Worker pipeline failed for {repo_name} @ {commit_sha} after {elapsed:.1f}s: {e}")
