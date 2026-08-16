@@ -87,7 +87,7 @@ def get_installation_access_token(installation_id: int) -> str:
         raise ValueError(f"GitHub App auth error: {response.text}")
 
     data = response.json()
-    token = data["access_token"]
+    token = data["token"]
     
     # Cache token until 5 mins before actual expiry
     _TOKEN_CACHE[installation_id] = (token, now + 3300)
