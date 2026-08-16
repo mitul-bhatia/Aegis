@@ -1,7 +1,7 @@
 /* eslint-disable react/jsx-no-comment-textnodes */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, type RepoInfo, type ScanInfo, type ScanStatus, type StatsInfo, isActiveScan } from "@/lib/api";
@@ -155,7 +155,7 @@ function ScanFeedCard({ scan }: { scan: ScanInfo }) {
 }
 
 // ── Main Dashboard ─────────────────────────────────────────
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const [repos, setRepos] = useState<RepoInfo[]>([]);
   const [scans, setScans] = useState<ScanInfo[]>([]);
@@ -418,5 +418,13 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><p className="text-muted-foreground animate-pulse">Loading Dashboard...</p></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

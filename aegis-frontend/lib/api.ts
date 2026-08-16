@@ -2,9 +2,7 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://aegis-backend-kiw7.onrender.com";
-// All API calls go through /api/v1/ for versioning
-// In the browser, use relative path /api/v1 (proxied by Next.js rewrites) or absolute URL as fallback.
-const API_V1 = typeof window !== "undefined" ? "/api/v1" : `${API_BASE}/api/v1`;
+const API_V1 = `${API_BASE}/api/v1`;
 
 /**
  * Build request options with credentials and fallback Authorization headers from localStorage.
