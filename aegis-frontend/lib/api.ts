@@ -88,34 +88,6 @@ export const api = {
     return user;
   },
 
-  /** Demo Mode login when OAuth Client ID is not configured. */
-  async loginDemo() {
-    const res = await fetchWithRetry(
-      `${API_V1}/auth/demo`,
-      getOpts({ method: "POST" }),
-    ).catch(() => null);
-    if (res && res.ok) {
-      const user = (await res.json()) as UserInfo;
-      if (typeof window !== "undefined" && user?.id) {
-        localStorage.setItem("aegis_user_id", String(user.id));
-        localStorage.setItem("aegis_username", user.github_username);
-        localStorage.setItem("aegis_avatar", user.github_avatar_url);
-      }
-      return user;
-    }
-    const fallbackUser: UserInfo = {
-      id: 1,
-      github_id: 999999,
-      github_username: "demo-user",
-      github_avatar_url: "https://avatars.githubusercontent.com/u/999999?v=4",
-    };
-    if (typeof window !== "undefined") {
-      localStorage.setItem("aegis_user_id", "1");
-      localStorage.setItem("aegis_username", "demo-user");
-      localStorage.setItem("aegis_avatar", fallbackUser.github_avatar_url);
-    }
-    return fallbackUser;
-  },
 
   /**
    * Read the session cookie / headers and return the current user.
@@ -209,21 +181,6 @@ export const api = {
     return res.json();
   },
 
-  async seedDemoRepo(userId: number) {
-    const res = await fetchWithRetry(
-      `${API_V1}/repos/seed-demo`,
-      getOpts({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId }),
-      }),
-    );
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Failed to seed demo repo");
-    }
-    return res.json();
-  },
 
   async listRepos(
     userId: number,

@@ -227,9 +227,7 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks):
                 # Find the user by github ID (the person who installed the app)
                 user = db.query(User).filter(User.github_id == sender_id).first()
                 
-                # If they haven't set up OAuth, fallback to the Demo user for testing
-                if not user:
-                    user = db.query(User).filter(User.id == 1).first()
+                # Ensure user has OAuth set up
                     
                 if not user:
                     logger.warning(f"GitHub App installed by unknown user (github_id: {sender_id})")

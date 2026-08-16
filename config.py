@@ -40,7 +40,7 @@ SANDBOX_DOCKER_HOST = os.getenv("SANDBOX_DOCKER_HOST", "")
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://aegis-ecru-eta.vercel.app")
 BACKEND_URL = os.getenv("BACKEND_URL") or os.getenv("RENDER_EXTERNAL_URL") or "http://localhost:8000"
 
 # ── Model Settings ────────────────────────────────────────

@@ -23,19 +23,7 @@ export default function LandingPage() {
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,write:repo_hook&redirect_uri=${redirectUri}`;
   }
 
-  async function handleDemoLogin() {
-    try {
-      const user = await api.loginDemo();
-      if (typeof window !== "undefined") {
-        localStorage.setItem("aegis_user_id", String(user.id));
-        localStorage.setItem("aegis_username", user.github_username);
-        localStorage.setItem("aegis_avatar", user.github_avatar_url);
-      }
-    } catch (e) {
-      console.warn("Demo login error:", e);
-    }
-    router.push("/dashboard");
-  }
+
 
 
   return (
@@ -59,15 +47,7 @@ export default function LandingPage() {
         </ul>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <ThemeToggle />
-          <button onClick={handleDemoLogin} style={{
-            fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "9px 18px",
-            border: "1px solid var(--border)", color: "var(--muted)", background: "transparent",
-            cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase", transition: "color 0.2s, border-color 0.2s",
-          }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--foreground)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--foreground)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; }}>
-            Try Demo Mode
-          </button>
+
           <button onClick={handleGitHubLogin} className="aegis-btn-shimmer" style={{
             fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "9px 22px",
             border: "1px solid var(--green)", color: "var(--green)", background: "transparent",
@@ -128,15 +108,7 @@ export default function LandingPage() {
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = ""; (e.currentTarget as HTMLButtonElement).style.boxShadow = ""; }}>
               Connect GitHub →
             </button>
-            <button onClick={handleDemoLogin} style={{
-              fontFamily: "var(--font-share-tech-mono)", fontSize: 12, padding: "14px 32px",
-              background: "transparent", color: "var(--foreground)", border: "1px solid var(--border)",
-              cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase", transition: "border-color 0.2s, color 0.2s",
-            }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--green)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--green)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--foreground)"; }}>
-              Try Demo Mode
-            </button>
+
           </div>
 
 

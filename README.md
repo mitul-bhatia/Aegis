@@ -6,7 +6,7 @@
   <strong>An autonomous 7-agent AI swarm that detects, proves, patches, and verifies security vulnerabilities in code, generating automated Pull Requests.</strong>
 </p>
 
-[![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://aegis-frontend-zeta.vercel.app)
+[![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://aegis-ecru-eta.vercel.app)
 [![Render](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://aegis-backend-kiw7.onrender.com/health)
 [![Supabase](https://img.shields.io/badge/Database-Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
 [![Python](https://img.shields.io/badge/Python-3.11.9-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
@@ -14,7 +14,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.style=for-the-badge)](LICENSE)
 
-[🌐 Live Demo](https://aegis-frontend-zeta.vercel.app) • [🔌 Live API Health](https://aegis-backend-kiw7.onrender.com/health) • [📖 Architecture Docs](docs/architecture.md)
+[🌐 Live Demo](https://aegis-ecru-eta.vercel.app) • [🔌 Live API Health](https://aegis-backend-kiw7.onrender.com/health) • [📖 Architecture Docs](docs/architecture.md)
 
 </div>
 
@@ -28,7 +28,7 @@
 
 ## 🌟 Live Demo & Deployments
 
-- **Frontend App (Next.js 14 / Vercel)**: [https://aegis-frontend-zeta.vercel.app](https://aegis-frontend-zeta.vercel.app)
+- **Frontend App (Next.js 14 / Vercel)**: [https://aegis-ecru-eta.vercel.app](https://aegis-ecru-eta.vercel.app)
 - **Backend API (FastAPI / Render)**: [https://aegis-backend-kiw7.onrender.com](https://aegis-backend-kiw7.onrender.com)
 - **PostgreSQL Database (Supabase)**: `db.htlokyrjfhbyevmozuon.supabase.co`
 
@@ -147,7 +147,7 @@ AUTO_FALLBACK_TO_DEMO=true
 # Server Configuration
 PORT=8000
 BACKEND_URL=https://aegis-backend-kiw7.onrender.com
-FRONTEND_URL=https://aegis-frontend-zeta.vercel.app
+FRONTEND_URL=https://aegis-ecru-eta.vercel.app
 ```
 
 ---

@@ -177,7 +177,7 @@ def _background_index_repo(repo_id: int, full_name: str, github_token: str):
             if pull_result.returncode != 0:
                 raise RuntimeError(f"git pull failed: {pull_result.stderr.strip()}")
         else:
-            if not github_token or github_token == "demo_token":
+            if not github_token:
                 clone_url = f"https://github.com/{full_name}.git"
             else:
                 clone_url = f"https://x-access-token:{github_token}@github.com/{full_name}.git"
@@ -248,11 +248,10 @@ def add_repo(
     else:
         # Fallback to manual webhook installation via personal token
         webhook_token = config.GITHUB_TOKEN if config.GITHUB_TOKEN else decrypt_token(user.github_token)
-        
-        if webhook_token == "demo_token":
+        if not webhook_token:
             raise HTTPException(
                 status_code=400,
-                detail="Cannot manually add a repository in Demo Mode. Please click 'Install GitHub App' instead!"
+                detail="Missing GitHub token to manually install webhook."
             )
             
         webhook_id = _install_webhook(full_name, webhook_token)

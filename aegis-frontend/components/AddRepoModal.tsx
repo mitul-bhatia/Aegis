@@ -239,39 +239,7 @@ export function AddRepoModal({
               </div>
             )}
 
-            {!user?.github_installation_id && (
-              <>
-                <div className="relative my-4 text-center text-xs text-muted-foreground before:absolute before:inset-0 before:top-1/2 before:border-t before:border-border">
-                  <span className="relative bg-background px-2">OR TRY IT OUT</span>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      setState("validating");
-                      await api.seedDemoRepo(userId);
-                      setState("complete");
-                      setTimeout(() => {
-                        setOpen(false);
-                        onSuccess();
-                        setState("idle");
-                      }, 1000);
-                    } catch (err: unknown) {
-                      setState("error");
-                      if (err instanceof Error) {
-                        setError(err.message || "Failed to seed demo repo");
-                      } else {
-                        setError("Failed to seed demo repo");
-                      }
-                    }
-                  }}
-                  className="inline-flex w-full items-center justify-center rounded-md border border-green-500/30 bg-green-500/10 px-4 py-2 text-sm font-medium text-green-400 hover:bg-green-500/20"
-                >
-                  ⚡ Load Showcase Repo
-                </button>
-              </>
-            )}
           </div>
         ) : (
           <div className="space-y-6 py-4">
