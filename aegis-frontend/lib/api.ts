@@ -2,7 +2,7 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://aegis-backend-kiw7.onrender.com";
-const API_V1 = `${API_BASE}/api/v1`;
+const API_V1 = typeof window !== "undefined" ? "/api/v1" : `${API_BASE}/api/v1`;
 
 /**
  * Build request options with credentials and fallback Authorization headers from localStorage.
