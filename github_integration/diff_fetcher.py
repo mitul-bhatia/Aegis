@@ -12,15 +12,24 @@ def clone_or_pull_repo(repo_url: str, local_path: str) -> str:
     Download the repository to our server so we can scan it.
     Uses fetch + reset instead of pull to avoid merge conflicts.
     """
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+
     if os.path.exists(local_path):
         logger.info(f"Fetching latest changes into {local_path}")
         # Use fetch + reset instead of pull to avoid merge conflicts
-        subprocess.run(["git", "-C", local_path, "fetch", "origin"], capture_output=True, check=False)
-        subprocess.run(["git", "-C", local_path, "reset", "--hard", "origin/main"], capture_output=True, check=False)
-        subprocess.run(["git", "-C", local_path, "clean", "-fd"], capture_output=True, check=False)
+        try:
+            subprocess.run(["git", "-C", local_path, "fetch", "origin"], env=env, capture_output=True, check=False, timeout=60)
+            subprocess.run(["git", "-C", local_path, "reset", "--hard", "origin/main"], env=env, capture_output=True, check=False, timeout=60)
+            subprocess.run(["git", "-C", local_path, "clean", "-fd"], env=env, capture_output=True, check=False, timeout=60)
+        except subprocess.TimeoutExpired:
+            logger.error("Git fetch timed out")
     else:
         logger.info(f"Cloning {repo_url} into {local_path}")
-        subprocess.run(["git", "clone", repo_url, local_path], capture_output=True, check=False)
+        try:
+            subprocess.run(["git", "clone", repo_url, local_path], env=env, capture_output=True, check=False, timeout=60)
+        except subprocess.TimeoutExpired:
+            logger.error("Git clone timed out")
     
     return local_path
 
