@@ -15,8 +15,34 @@ from backend.app.agents.engineer import generate_patch_with_engineer
 from backend.app.agents.reviewer import review_patch_safety
 from backend.app.agents.pr_creator import create_security_pull_request
 from backend.app.github.auth import get_installation_access_token
+from backend.app.api.scans import broadcast_scan_update
 
 logger = logging.getLogger("aegis.pipeline.orchestrator")
+
+
+def _broadcast(scan: Scan):
+    """Helper to broadcast serialized scan update to SSE listeners."""
+    try:
+        data = {
+            "id": scan.id,
+            "repo_id": scan.repo_id,
+            "commit_sha": scan.commit_sha,
+            "branch": scan.branch,
+            "status": scan.status,
+            "vulnerability_type": scan.vulnerability_type,
+            "severity": scan.severity,
+            "pr_url": scan.pr_url,
+            "created_at": scan.created_at.isoformat() if scan.created_at else None,
+            "completed_at": scan.completed_at.isoformat() if scan.completed_at else None,
+            "vulnerable_file": scan.vulnerable_file,
+            "patch_diff": scan.patch_diff,
+            "error_message": scan.error_message,
+            "current_agent": scan.current_agent,
+            "agent_message": scan.agent_message,
+        }
+        broadcast_scan_update(data)
+    except Exception as e:
+        logger.debug(f"Broadcast failed: {e}")
 
 
 def clone_repo_ephemeral(repo_full_name: str, installation_id: Optional[int], target_dir: str) -> bool:
@@ -67,6 +93,7 @@ async def execute_scan_background(scan_id: int):
         scan.current_agent = "finder"
         scan.agent_message = f"Cloning repository {repo.full_name} and mapping structural architecture..."
         db.commit()
+        _broadcast(scan)
 
         # 2. Ephemeral Clone
         cloned = clone_repo_ephemeral(repo.full_name, repo.installation_id, temp_dir)
@@ -75,6 +102,7 @@ async def execute_scan_background(scan_id: int):
         # 3. Structural RAG Indexing
         scan.agent_message = "Indexing codebase AST and running Semgrep vulnerability rules..."
         db.commit()
+        _broadcast(scan)
 
         # 4. Run Finder Agent
         findings = run_finder_agent(scan_path)
@@ -86,6 +114,7 @@ async def execute_scan_background(scan_id: int):
             scan.agent_message = "No security vulnerabilities or structural flaws detected. Repository is clean!"
             scan.completed_at = datetime.utcnow()
             db.commit()
+            _broadcast(scan)
             return
 
         # 5. Populate primary finding
@@ -125,6 +154,7 @@ async def execute_scan_background(scan_id: int):
         scan.current_agent = "approval_gate"
         scan.agent_message = f"Identified {len(findings)} findings. Awaiting developer review or local verification."
         db.commit()
+        _broadcast(scan)
 
     except Exception as e:
         logger.error(f"Error in scan #{scan_id}: {e}", exc_info=True)
@@ -134,6 +164,7 @@ async def execute_scan_background(scan_id: int):
             scan.error_message = str(e)
             scan.agent_message = f"Scan failed: {str(e)}"
             db.commit()
+            _broadcast(scan)
     finally:
         db.close()
         shutil.rmtree(temp_dir, ignore_errors=True)
@@ -154,6 +185,7 @@ async def execute_engineer_fix_background(scan_id: int, user_context: Optional[s
         scan.current_agent = "engineer"
         scan.agent_message = "Engineer Agent synthesizing minimal regression-tested patch..."
         db.commit()
+        _broadcast(scan)
 
         # 1. Synthesize patch
         patch_result = generate_patch_with_engineer(
@@ -173,6 +205,7 @@ async def execute_engineer_fix_background(scan_id: int, user_context: Optional[s
         scan.current_agent = "verifier"
         scan.agent_message = "Reviewer Agent validating patch safety and AST correctness..."
         db.commit()
+        _broadcast(scan)
 
         review = review_patch_safety(
             file_path=scan.vulnerable_file or "main.py",
@@ -184,6 +217,7 @@ async def execute_engineer_fix_background(scan_id: int, user_context: Optional[s
         # 3. Create PR
         scan.agent_message = "Opening verified Pull Request on GitHub..."
         db.commit()
+        _broadcast(scan)
 
         pr_url = create_security_pull_request(
             installation_id=repo.installation_id,
@@ -202,6 +236,7 @@ async def execute_engineer_fix_background(scan_id: int, user_context: Optional[s
         scan.agent_message = f"Vulnerability resolved! Pull Request opened: {pr_url}"
         scan.completed_at = datetime.utcnow()
         db.commit()
+        _broadcast(scan)
 
     except Exception as e:
         logger.error(f"Error in patch generation for scan #{scan_id}: {e}", exc_info=True)
@@ -211,5 +246,6 @@ async def execute_engineer_fix_background(scan_id: int, user_context: Optional[s
             scan.error_message = str(e)
             scan.agent_message = f"Fix failed: {str(e)}"
             db.commit()
+            _broadcast(scan)
     finally:
         db.close()
