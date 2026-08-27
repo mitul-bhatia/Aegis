@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "https://aegis-wpeu.onrender.com").replace(/\/$/, "");
+const apiUrl = "https://aegis-wpeu.onrender.com";
 
 const nextConfig = {
   eslint: {
