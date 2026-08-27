@@ -1,7 +1,13 @@
 /** @type {import('next').NextConfig} */
-const apiUrl = "https://aegis-wpeu.onrender.com";
+// Robustly parse the API URL from environment variables, ensuring it has https:// and no trailing slash
+let rawUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://aegis-wpeu.onrender.com";
+if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+  rawUrl = "https://" + rawUrl;
+}
+const apiUrl = rawUrl.replace(/\/$/, "");
 
 const nextConfig = {
+  output: "standalone",
   eslint: {
     ignoreDuringBuilds: true,
   },

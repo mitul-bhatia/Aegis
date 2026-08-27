@@ -1,4 +1,8 @@
-const API_BASE = "https://aegis-wpeu.onrender.com";
+let rawApi = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://aegis-wpeu.onrender.com";
+if (!rawApi.startsWith("http://") && !rawApi.startsWith("https://")) {
+  rawApi = "https://" + rawApi;
+}
+const API_BASE = rawApi.replace(/\/$/, "");
 const API_V1 = typeof window !== "undefined" ? "/api/v1" : `${API_BASE}/api/v1`;
 
 /**
