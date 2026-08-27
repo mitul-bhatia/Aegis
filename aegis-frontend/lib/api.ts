@@ -158,14 +158,14 @@ export const api = {
     return res.json();
   },
 
-  async getAvailableRepos(userId: number) {
+  async getAvailableRepos(userId: number): Promise<AvailableRepo[]> {
     const params = new URLSearchParams({ user_id: String(userId) });
     const res = await fetchWithRetry(`${API_V1}/repos/available?${params}`, getOpts());
     if (!res.ok) throw new Error("Failed to fetch available repos");
     return res.json();
   },
 
-  async addRepo(userId: number, repoUrl: string) {
+  async addRepo(userId: number, repoUrl: string): Promise<RepoInfo> {
     const res = await fetchWithRetry(
       `${API_V1}/repos`,
       getOpts({
@@ -179,6 +179,11 @@ export const api = {
       throw new Error(err.detail || "Failed to add repo");
     }
     return res.json();
+  },
+
+  /** Seed demo test repo for showcase */
+  async seedDemoRepo(userId: number): Promise<RepoInfo> {
+    return this.addRepo(userId, "https://github.com/mitu1046/aegis-test-repo");
   },
 
 
@@ -403,6 +408,17 @@ export type RepoInfo = {
   status: string;
   created_at: string;
   html_url?: string;
+};
+
+export type AvailableRepo = {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  html_url: string;
+  description?: string | null;
+  default_branch?: string;
+  is_monitored?: boolean;
 };
 
 export type ScanInfo = {

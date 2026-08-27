@@ -55,6 +55,7 @@ def run_in_docker_sandbox(script_content: str, target_dir: str, timeout: int = 3
         "--memory", "512m",
         "--cpus", "1.0",
         "--user", "10001:10001",
+        "--tmpfs", "/tmp",
         "-v", f"{os.path.abspath(target_dir)}:/app:ro",
         "-v", f"{temp_script}:/workspace/exploit.py:ro",
         "python:3.11-slim",
@@ -67,6 +68,7 @@ def run_in_docker_sandbox(script_content: str, target_dir: str, timeout: int = 3
         print("    • Capabilities: ALL DROPPED")
         print("    • Memory Cap: 512MB")
         print("    • Mount: /app [READ-ONLY]")
+        print("    • Scratch Space: /tmp [TMPFS]")
         print("    • Execution User: sandboxuser (UID 10001)\n")
         
         result = subprocess.run(docker_cmd, capture_output=True, text=True, timeout=timeout)
@@ -80,8 +82,11 @@ def verify_scan(scan_id: int, api_url: str):
     print(BANNER)
     print(f"[*] Fetching scan details for Scan #{scan_id} from {api_url}...")
 
+    api_key = os.getenv("CLI_API_KEY", "aegis-cli-dev-key-123")
+    headers = {"X-Aegis-CLI-Key": api_key}
+    
     try:
-        resp = requests.get(f"{api_url}/api/v1/scans/{scan_id}", timeout=10)
+        resp = requests.get(f"{api_url}/api/v1/scans/{scan_id}", headers=headers, timeout=10)
         if resp.status_code != 200:
             print(f"[!] Error: Could not find Scan #{scan_id} (HTTP {resp.status_code})")
             return
@@ -97,14 +102,12 @@ def verify_scan(scan_id: int, api_url: str):
         print("[!] Docker Desktop daemon is not running. Please start Docker Desktop and retry.")
         return
 
-    # Mock exploit verification script
-    exploit_script = scan.get("exploit_script") or """
-import sys
-print("=== AEGIS EXPLOIT TEST START ===")
-print("Payload dispatched: ' OR '1'='1' --")
-print("Target endpoint responded: 200 OK with unauthorized user record dumped: [('admin', 'hash_secret')]")
-print("=== VERIFICATION CONFIRMED: VULNERABILITY IS REAL ===")
-"""
+    # Real exploit verification script from LLM
+    exploit_script = scan.get("exploit_script")
+    if not exploit_script:
+        print("[!] Error: No exploit script generated for this scan yet.")
+        print("[!] The Engineer agent must generate a reproduction script before verification.")
+        return
 
     print("[*] Executing Proof-of-Concept Exploit in Local Docker Sandbox...")
     res = run_in_docker_sandbox(exploit_script, target_dir=".")
@@ -116,11 +119,12 @@ print("=== VERIFICATION CONFIRMED: VULNERABILITY IS REAL ===")
         print(res.stderr)
     print("------------------------\n")
 
-    if res.returncode == 0 or "VERIFICATION CONFIRMED" in res.stdout:
+    if res.returncode == 0 and "VERIFICATION CONFIRMED" in res.stdout:
         print("[✔] VERIFICATION SUCCESS: Exploit confirmed inside isolated container!")
         print("[✔] No false positive. This issue is ready for autonomous patch generation by Engineer Agent.\n")
     else:
-        print("[?] Exploit script execution completed.")
+        print("[?] Exploit script execution completed but verification condition failed.")
+        print("[?] Expected 'VERIFICATION CONFIRMED' in stdout or exit code 0.")
 
 
 def main():

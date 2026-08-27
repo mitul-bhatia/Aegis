@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus, Loader2, CheckCircle2, RefreshCw } from "lucide-react";
-import { api, UserInfo } from "@/lib/api";
+import { api, UserInfo, AvailableRepo } from "@/lib/api";
 
 type ProgressState =
   | "idle"
@@ -38,7 +38,7 @@ export function AddRepoModal({
   const [repoId, setRepoId] = useState<number | null>(null);
   
   const [user, setUser] = useState<UserInfo | null>(null);
-  const [availableRepos, setAvailableRepos] = useState<Record<string, unknown>[]>([]);
+  const [availableRepos, setAvailableRepos] = useState<AvailableRepo[]>([]);
 
   useEffect(() => {
     if (forceOpen) {
@@ -62,7 +62,7 @@ export function AddRepoModal({
       
       if (u?.github_installation_id) {
         const repos = await api.getAvailableRepos(userId);
-        setAvailableRepos(repos.data || []);
+        setAvailableRepos(Array.isArray(repos) ? repos : ((repos as unknown as { data?: AvailableRepo[] })?.data || []));
       }
       setState("idle");
     } catch (err: unknown) {
@@ -149,12 +149,14 @@ export function AddRepoModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button className="gap-2 aegis-glow">
-          <Plus className="h-4 w-4" />
-          Monitor Repo
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button className="gap-2 aegis-glow">
+            <Plus className="h-4 w-4" />
+            Monitor Repo
+          </Button>
+        }
+      />
       <DialogContent className="max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add a Repository</DialogTitle>

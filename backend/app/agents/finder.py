@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from groq import Groq
+from backend.app.core.llm_client import get_llm_response
 
 from backend.app.config import settings
 from backend.app.rag.context_builder import build_agent_context, get_file_surrounding_context
@@ -51,12 +51,9 @@ def run_finder_agent(repo_dir: str, diff_text: Optional[str] = None) -> List[Fin
     # 2. Build architectural RAG context
     rag_context = build_agent_context(repo_dir)
 
-    # 3. If Groq API key is available, use LLM for deep triage
-    if settings.GROQ_API_KEY:
-        try:
-            client = Groq(api_key=settings.GROQ_API_KEY)
-            
-            prompt_content = f"""
+    # 3. Use LLM for deep triage
+    try:
+        prompt_content = f"""
 {rag_context}
 
 ## Raw Static Analysis Findings ({len(raw_sast_findings)} discovered):
@@ -71,43 +68,43 @@ def run_finder_agent(repo_dir: str, diff_text: Optional[str] = None) -> List[Fin
 
 Perform triage and output the verified list of high-confidence vulnerability findings as a JSON array.
 """
-            response = client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": FINDER_SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt_content},
-                ],
-                temperature=0.1,
-                max_tokens=2048,
-            )
+        response_text = get_llm_response(
+            system_prompt=FINDER_SYSTEM_PROMPT,
+            user_prompt=prompt_content,
+            temperature=0.1,
+            max_tokens=2048,
+        )
 
-            raw_text = response.choices[0].message.content.strip()
-            # Clean possible markdown wrapping
-            if raw_text.startswith("```"):
-                raw_text = raw_text.split("```")[1]
-                if raw_text.startswith("json"):
-                    raw_text = raw_text[4:]
-            raw_text = raw_text.strip()
-
-            parsed_list = json.loads(raw_text)
-            validated_findings: List[FindingInfo] = []
-            for item in parsed_list:
-                validated_findings.append(
-                    FindingInfo(
-                        file=item.get("file", ""),
-                        line_start=item.get("line_start", 1),
-                        vuln_type=item.get("vuln_type", "Security Vulnerability"),
-                        severity=item.get("severity", "HIGH"),
-                        description=item.get("description", ""),
-                        relevant_code=item.get("relevant_code", ""),
-                        confidence=item.get("confidence", "HIGH"),
-                    )
+        # Cleanup markdown json formatting if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        
+        response_text = response_text.strip()
+        parsed_list = json.loads(response_text)
+        
+        validated_findings: List[FindingInfo] = []
+        for item in parsed_list:
+            validated_findings.append(
+                FindingInfo(
+                    file=item.get("file", ""),
+                    line_start=item.get("line_start", 1),
+                    vuln_type=item.get("vuln_type", "Security Vulnerability"),
+                    severity=item.get("severity", "HIGH"),
+                    description=item.get("description", ""),
+                    relevant_code=item.get("relevant_code", ""),
+                    confidence=item.get("confidence", "HIGH"),
                 )
-            if validated_findings:
-                logger.info(f"Finder Agent verified {len(validated_findings)} high-confidence findings.")
-                return validated_findings
-        except Exception as e:
-            logger.warning(f"Groq Finder LLM call failed ({e}). Falling back to normalized SAST findings.")
+            )
+        if validated_findings:
+            logger.info(f"Finder Agent verified {len(validated_findings)} high-confidence findings.")
+            return validated_findings
+            
+    except Exception as e:
+        logger.warning(f"Finder LLM call failed ({e}). Falling back to normalized SAST findings.")
 
     # 4. Fallback to direct SAST conversion
     results: List[FindingInfo] = []

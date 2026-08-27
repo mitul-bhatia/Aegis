@@ -11,7 +11,7 @@ from backend.app.core.database import SessionLocal
 from backend.app.models.entities import Scan, Repository, User, Issue
 from backend.app.rag.tree_indexer import index_repository_structure
 from backend.app.agents.finder import run_finder_agent
-from backend.app.agents.engineer import generate_patch_with_engineer
+from backend.app.agents.engineer import generate_patch_with_engineer, generate_reproduction_script
 from backend.app.agents.reviewer import review_patch_safety
 from backend.app.agents.pr_creator import create_security_pull_request
 from backend.app.github.auth import get_installation_access_token
@@ -131,6 +131,15 @@ async def execute_scan_background(scan_id: int):
                 scan.original_code = f.read()
         else:
             scan.original_code = primary_finding.relevant_code
+
+        # Generate reproduction script for CLI sandbox
+        scan.agent_message = "Generating zero-trust Sandbox verification script..."
+        db.commit()
+        _broadcast(scan)
+        
+        exploit_script = generate_reproduction_script(scan.original_code, scan.vulnerability_type, scan.vulnerable_file)
+        scan.exploit_script = exploit_script
+
 
         # Create interactive issues
         for f in findings:

@@ -132,32 +132,61 @@ def get_analytics(
     db: Session = Depends(get_db),
 ):
     """Retrieve historical vulnerability trends and resolution metrics."""
-    scans = db.query(Scan).all()
-    fixed_count = sum(1 for s in scans if s.status == "fixed")
+    # Build query
+    query = db.query(Scan)
+    if user_id:
+        query = query.join(Repository).filter(Repository.user_id == user_id)
+        
+    scans = query.all()
+    
+    total_scans = len(scans)
+    fixed_scans = [s for s in scans if s.status == "fixed"]
+    fixed_count = len(fixed_scans)
+    
+    # Calculate MTTR
+    mttr_sum = 0
+    for s in fixed_scans:
+        if s.completed_at and s.created_at:
+            mttr_sum += (s.completed_at - s.created_at).total_seconds() / 3600.0
+            
+    mttr_hours = round(mttr_sum / fixed_count, 2) if fixed_count > 0 else 0.0
+    fix_rate = round((fixed_count / total_scans * 100), 1) if total_scans > 0 else 0.0
+    
+    # Calculate top vulnerabilities
+    vuln_counts = {}
+    for s in scans:
+        vt = s.vulnerability_type or "Unknown"
+        vuln_counts[vt] = vuln_counts.get(vt, 0) + 1
+        
+    top_vulns = [{"type": k, "count": v} for k, v in sorted(vuln_counts.items(), key=lambda item: item[1], reverse=True)[:5]]
+    
+    # Calculate vulnerability trend (group by date)
+    trend_dict = {}
+    for s in scans:
+        date_str = s.created_at.strftime("%Y-%m-%d")
+        if date_str not in trend_dict:
+            trend_dict[date_str] = {"date": date_str, "found": 0, "fixed": 0}
+        trend_dict[date_str]["found"] += 1
+        if s.status == "fixed":
+            trend_dict[date_str]["fixed"] += 1
+            
+    vuln_trend = sorted(list(trend_dict.values()), key=lambda x: x["date"])
     
     return AnalyticsData(
-        vuln_trend=[
-            {"date": "2026-08-20", "found": 3, "fixed": 2},
-            {"date": "2026-08-22", "found": 4, "fixed": 4},
-            {"date": "2026-08-25", "found": 2, "fixed": 2},
-        ],
-        top_vulns=[
-            {"type": "SQL Injection", "count": 4},
-            {"type": "Command Injection (RCE)", "count": 2},
-            {"type": "Hardcoded Secret", "count": 3},
-        ],
+        vuln_trend=vuln_trend,
+        top_vulns=top_vulns,
         severity_dist={
             "CRITICAL": sum(1 for s in scans if s.severity == "CRITICAL"),
             "HIGH": sum(1 for s in scans if s.severity == "HIGH"),
             "MEDIUM": sum(1 for s in scans if s.severity == "MEDIUM"),
             "LOW": sum(1 for s in scans if s.severity == "LOW"),
         },
-        mttr_hours=0.45,
-        fix_rate=92.5,
-        total_scans=len(scans),
-        total_vulns_found=len(scans),
+        mttr_hours=mttr_hours,
+        fix_rate=fix_rate,
+        total_scans=total_scans,
+        total_vulns_found=total_scans,
         total_fixed=fixed_count,
-        regressions=0,
+        regressions=sum(1 for s in scans if s.is_regression),
         period_days=days,
     )
 

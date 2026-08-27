@@ -1,7 +1,7 @@
 import ast
 import logging
 from typing import Dict, Any
-from groq import Groq
+from backend.app.core.llm_client import get_llm_response
 from backend.app.config import settings
 
 logger = logging.getLogger("aegis.agents.reviewer")
@@ -29,10 +29,8 @@ def review_patch_safety(
             }
 
     # 2. LLM Safety Evaluation
-    if settings.GROQ_API_KEY:
-        try:
-            client = Groq(api_key=settings.GROQ_API_KEY)
-            prompt = f"""
+    try:
+        prompt = f"""
 Target File: `{file_path}`
 Remediated Vulnerability: `{vuln_type}`
 
@@ -50,21 +48,30 @@ Analyze if the patch successfully neutralizes the vulnerability without breaking
 Respond in JSON format:
 {{"is_safe": true, "feedback": "Patch verified: SQL injection parameterized properly."}}
 """
-            resp = client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are the Aegis Reviewer Agent. Verify patch correctness."},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.0,
-                max_tokens=300,
-            )
-            raw = resp.choices[0].message.content.strip()
-            if "true" in raw.lower():
-                return {"is_safe": True, "feedback": "Patch verified safe by Reviewer Agent."}
-            else:
-                return {"is_safe": True, "feedback": raw}
-        except Exception as e:
-            logger.warning(f"Reviewer LLM check skipped ({e})")
+        response_text = get_llm_response(
+            system_prompt="You are the Aegis Reviewer Agent. Verify patch correctness.",
+            user_prompt=prompt,
+            model=settings.GROQ_MODEL,
+            temperature=0.0,
+            max_tokens=300,
+        )
 
-    return {"is_safe": True, "feedback": "Syntax and structural checks passed."}
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+
+        import json
+        data = json.loads(response_text.strip())
+        return {
+            "is_safe": data.get("is_safe", False),
+            "feedback": data.get("feedback", "Review completed by LLM."),
+        }
+    except Exception as e:
+        logger.error(f"Reviewer LLM Agent failed: {e}")
+        return {
+            "is_safe": True,
+            "feedback": f"LLM Review failed ({e}). Proceeding with AST syntax validation only.",
+        }

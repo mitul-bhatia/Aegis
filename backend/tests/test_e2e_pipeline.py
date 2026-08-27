@@ -2,10 +2,12 @@ import sys
 import os
 import json
 import pytest
-from fastapi.testclient import TestClient
 
+# Ensure tests use an isolated test database
+os.environ["DATABASE_URL"] = "sqlite:///./test_aegis.db"
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
+from fastapi.testclient import TestClient
 from backend.app.main import app
 from backend.app.core.database import SessionLocal, init_db
 from backend.app.models.entities import User, Repository, Scan, Issue

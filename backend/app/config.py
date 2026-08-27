@@ -22,8 +22,11 @@ class Settings(BaseSettings):
     
     # Groq LLM API
     GROQ_API_KEY: str = Field(default="", env="GROQ_API_KEY")
+    GROQ_API_KEYS: Optional[str] = Field(default=None, env="GROQ_API_KEYS")
+    GEMINI_API_KEY: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
     GROQ_MODEL: str = Field(default="openai/gpt-oss-120b", env="GROQ_MODEL")
     GROQ_ENGINEER_MODEL: str = Field(default="openai/gpt-oss-120b", env="GROQ_ENGINEER_MODEL")
+
     
     # GitHub App & OAuth
     GITHUB_APP_ID: Optional[str] = Field(default=None, env="GITHUB_APP_ID")
@@ -40,6 +43,9 @@ class Settings(BaseSettings):
     
     # Cloud Deployment Check
     RENDER: Optional[str] = Field(default=None, env="RENDER")
+
+    # CLI Auth
+    CLI_API_KEY: str = Field(default="aegis-cli-dev-key-123", env="CLI_API_KEY")
 
     model_config = {
         "env_file": ".env",

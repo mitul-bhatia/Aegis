@@ -58,6 +58,10 @@ app.include_router(scans_router, prefix="/api/v1")
 app.include_router(stats_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
 
+# Also mount webhook router directly at /webhook and /webhooks for GitHub App default configs
+app.include_router(webhooks_router, prefix="/webhook")
+app.include_router(webhooks_router, prefix="/webhooks")
+
 
 @app.get("/health")
 def health_check():

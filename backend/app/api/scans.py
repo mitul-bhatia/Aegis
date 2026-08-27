@@ -5,10 +5,12 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, BackgroundTasks, Header
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
+from backend.app.config import settings
+from backend.app.core.security import get_current_user_optional
 from backend.app.core.database import get_db, SessionLocal
 from backend.app.models.entities import Scan, Repository, User, Issue
 from backend.app.schemas.dtos import (
@@ -158,8 +160,17 @@ async def sse_live_scans(request: Request):
 
 
 @router.get("/{scan_id}", response_model=ScanInfo)
-def get_scan(scan_id: int, db: Session = Depends(get_db)):
+def get_scan(
+    scan_id: int, 
+    x_aegis_cli_key: Optional[str] = Header(None),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
     """Fetch single scan detail."""
+    # Ensure request comes from an authenticated user or a valid CLI key
+    if not current_user and x_aegis_cli_key != settings.CLI_API_KEY:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     s = db.query(Scan).filter(Scan.id == scan_id).first()
     if not s:
         raise HTTPException(status_code=404, detail="Scan not found")

@@ -17,31 +17,14 @@ def get_engine():
             connect_args={"check_same_thread": False},
             echo=settings.DEBUG,
         )
-    else:
-        try:
-            eng = create_engine(
-                url,
-                pool_pre_ping=True,
-                pool_size=10,
-                max_overflow=20,
-                echo=settings.DEBUG,
-            )
-            with eng.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            logger.info("Connected to PostgreSQL database.")
-            return eng
-        except Exception as e:
-            if settings.RENDER:
-                logger.error(f"PostgreSQL connection failed in production on Render: {e}")
-                raise RuntimeError("PostgreSQL database is REQUIRED in production.")
-            logger.warning(
-                f"PostgreSQL connection failed ({e}). Falling back to local SQLite: sqlite:///./aegis.db"
-            )
-            return create_engine(
-                "sqlite:///./aegis.db",
-                connect_args={"check_same_thread": False},
-                echo=settings.DEBUG,
-            )
+    
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+        echo=settings.DEBUG,
+    )
 
 
 engine = get_engine()
