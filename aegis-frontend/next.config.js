@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "https://aegis-backend-kiw7.onrender.com").replace(/\/$/, "");
+
 const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
@@ -10,10 +12,11 @@ const nextConfig = {
     return [
       {
         source: "/api/v1/:path*",
-        destination: "https://aegis-backend-kiw7.onrender.com/api/v1/:path*",
+        destination: `${apiUrl}/api/v1/:path*`,
       },
     ];
   },
 };
 
 module.exports = nextConfig;
+

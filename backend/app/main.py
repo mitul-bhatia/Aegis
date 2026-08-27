@@ -21,7 +21,10 @@ logger = logging.getLogger("aegis.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Aegis 2.0 Backend...")
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        logger.warning(f"Database initialization deferred on startup ({e}). Server is starting up.")
     yield
     logger.info("Shutting down Aegis 2.0 Backend.")
 
