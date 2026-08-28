@@ -11,6 +11,7 @@ function CallbackContent() {
   const router = useRouter();
   const [status, setStatus] = useState("Authenticating with GitHub...");
   const [error, setError] = useState("");
+  const [isColdStart, setIsColdStart] = useState(false);
   // Guard against double-invocation (React StrictMode / fast refresh)
   const didRun = useRef(false);
 
@@ -37,6 +38,27 @@ function CallbackContent() {
       try {
         setStatus("Exchanging token...");
 
+        // First, warm up the backend before attempting auth
+        setStatus("Waking up backend... (may take ~30s on first load)");
+        let warmed = false;
+        for (let i = 0; i < 6; i++) {
+          try {
+            const ping = await fetch("/api/v1/health");
+            if (ping.ok) { warmed = true; break; }
+          } catch { /* ignore */ }
+          if (i < 5) {
+            setStatus(`Backend waking up... retrying in 10s (${5 - i} retries left)`);
+            await new Promise((r) => setTimeout(r, 10000));
+          }
+        }
+
+        if (!warmed) {
+          setIsColdStart(true);
+          setError("The backend is taking too long to wake up. Please try again in ~30 seconds.");
+          return;
+        }
+
+        setStatus("Exchanging token...");
         const user = await api.exchangeGitHubCode(code!);
 
         localStorage.setItem("aegis_user_id", String(user.id));
@@ -57,13 +79,18 @@ function CallbackContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
+      <div className="text-center max-w-md px-4">
         <Shield className="mx-auto mb-6 h-12 w-12 text-primary" />
         {error ? (
           <div>
-            <p className="text-destructive font-semibold">{error}</p>
+            <p className="text-destructive font-semibold mb-3">{error}</p>
+            {isColdStart && (
+              <p className="text-muted-foreground text-sm mb-4">
+                Render free tier services sleep after inactivity. The backend is now warming up. Please wait ~30 seconds, then click below to try again.
+              </p>
+            )}
             <Link href="/" className="mt-4 inline-block text-sm text-primary underline">
-              Go back
+              {isColdStart ? "Try logging in again →" : "Go back"}
             </Link>
           </div>
         ) : (
