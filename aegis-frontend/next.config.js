@@ -1,13 +1,9 @@
 /** @type {import('next').NextConfig} */
-// Robustly parse the API URL from environment variables, ensuring it has https:// and no trailing slash
-let rawUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://aegis-wpeu.onrender.com";
-if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
-  rawUrl = "https://" + rawUrl;
-}
-const apiUrl = rawUrl.replace(/\/$/, "");
+// Backend URL is fixed infrastructure — the proxy target does not change per-environment.
+// NEXT_PUBLIC_API_URL is still read at runtime in lib/api.ts for direct client-side calls.
+const BACKEND_URL = "https://aegis-wpeu.onrender.com";
 
 const nextConfig = {
-  output: "standalone",
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -18,7 +14,7 @@ const nextConfig = {
     return [
       {
         source: "/api/v1/:path*",
-        destination: `${apiUrl}/api/v1/:path*`,
+        destination: `${BACKEND_URL}/api/v1/:path*`,
       },
     ];
   },
