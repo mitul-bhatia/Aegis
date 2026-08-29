@@ -43,8 +43,10 @@ function CallbackContent() {
         let warmed = false;
         for (let i = 0; i < 6; i++) {
           try {
-            const ping = await fetch("/api/v1/health");
-            if (ping.ok) { warmed = true; break; }
+            // Ping an endpoint that exists on the backend under /api/v1
+            // (The root health check is at /health, but let's just ping /api/v1/repos to check liveness)
+            const ping = await fetch("/api/v1/repos");
+            if (ping.status !== 502 && ping.status !== 504) { warmed = true; break; }
           } catch { /* ignore */ }
           if (i < 5) {
             setStatus(`Backend waking up... retrying in 10s (${5 - i} retries left)`);
