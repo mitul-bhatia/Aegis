@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Thin Aegis wrapper around Ralph scripts (model-agnostic).
+#
+# Usage:
+#   ./scripts/ralph once              # single iteration (smoke)
+#   ./scripts/ralph loop -n 20 -y     # autonomous loop
+#   ./scripts/ralph setup             # interactive setup
+#   RALPH_MODEL=composer-2 ./scripts/ralph loop -n 30 -y
+#   RALPH_MODEL=grok-4.5 ./scripts/ralph once -y   # if CLI exposes that model id
+#
+# Requires: cursor-agent CLI (curl https://cursor.com/install -fsS | bash)
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPTS="$ROOT/.cursor/ralph-scripts"
+cmd="${1:-setup}"
+shift || true
+
+if ! command -v cursor-agent >/dev/null 2>&1; then
+  echo "cursor-agent not found. Install: curl https://cursor.com/install -fsS | bash"
+  echo "Meanwhile use in-IDE Agent: open RALPH_TASK.md and ask to run one Ralph iteration."
+  exit 1
+fi
+
+case "$cmd" in
+  once)  exec "$SCRIPTS/ralph-once.sh" "$@" "$ROOT" ;;
+  loop)  exec "$SCRIPTS/ralph-loop.sh" "$@" "$ROOT" ;;
+  setup) exec "$SCRIPTS/ralph-setup.sh" "$@" ;;
+  init)  exec "$SCRIPTS/init-ralph.sh" "$@" ;;
+  *)
+    echo "Usage: ./scripts/ralph {once|loop|setup|init} [ralph flags...]"
+    exit 1
+    ;;
+esac

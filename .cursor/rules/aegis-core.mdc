@@ -1,0 +1,27 @@
+---
+description: Aegis core project brain — always apply across the repo
+alwaysApply: true
+---
+
+# Aegis core
+
+Before non-trivial work, read `docs/PROJECT_MEMORY.md` for stage, as-built paths, deploy map, and WIP.
+
+## Config & secrets
+- Read settings only via `backend/app/config.py` (`settings`) — not scattered `os.getenv` in feature code.
+- Secret **values** never go in docs, rules, commits, PRs, or logs. Env **names** only.
+- Local `.env` / `.env.production` are gitignored; may be read for debugging when the user asks.
+
+## Security non-negotiables
+- Sandbox (`backend/runner/Dockerfile.sandbox`): keep `cap_drop: ALL`, `network: none`, non-root, read-only mounts, tight limits. Never relax to fix tests.
+- Verify GitHub webhook signatures; do not bypass.
+- Do not scan or auto-fix fork PRs.
+- Fail closed when unsure on auth, webhooks, or sandbox.
+
+## Architecture truth
+- Live code lives under `backend/app/` and `aegis-frontend/`. Prefer `docs/PROJECT_MEMORY.md` over older docs that mention root `main.py`, `github_integration/`, or ChromaDB as primary RAG.
+- Pipeline: Phase 1 scan → `awaiting_approval` → Phase 2 engineer → reviewer → PR (`backend/app/pipeline/orchestrator.py`).
+
+## Shipping posture
+- Minimal, targeted changes. Update `docs/PROJECT_MEMORY.md` Stage snapshot when milestones land.
+- Conventions also in `.agents/plugins/aegis-dev/rules/aegis-conventions.md` when present.

@@ -1,0 +1,19 @@
+---
+description: Aegis Next.js frontend conventions
+globs: aegis-frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Aegis frontend
+
+## Layout
+- App Router under `aegis-frontend/app/` (`/`, `/dashboard`, `/scans/[id]`, `/analytics`, `/auth/callback`)
+- API client: `aegis-frontend/lib/api.ts`
+- Shared UI: `aegis-frontend/components/` (+ `components/ui/`)
+
+## Conventions
+- Backend base from `NEXT_PUBLIC_API_URL` or `NEXT_PUBLIC_BACKEND_URL` (names only in docs).
+- Keep auth working cross-origin (Vercel ↔ Render): credentials + localStorage Bearer / `X-Aegis-User-Id` fallbacks already used in `lib/api.ts` — do not break without a replacement.
+- Match FastAPI `/api/v1` contracts; if backend agent/scan schemas change, update TS types and consumers in the same change.
+- Prefer existing component patterns; avoid drive-by redesigns while shipping.
+- Vercel root directory is `aegis-frontend`.

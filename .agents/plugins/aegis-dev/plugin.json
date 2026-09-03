@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "aegis-dev",
+  "description": "Dev tooling for Aegis: GitHub App vuln-remediation platform (FastAPI + LangGraph + Groq + Semgrep + Docker sandbox + Next.js). MCP servers + subagents scoped to the real module boundaries in ARCHITECTURE.md."
+}

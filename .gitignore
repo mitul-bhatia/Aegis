@@ -3,6 +3,12 @@
 .env.production
 *.env
 
+# Ralph (config may contain keys; logs are noisy)
+.cursor/ralph-config.json
+.ralph/activity.log
+.ralph/errors.log
+.ralph-worktrees/
+
 
 # Python
 __pycache__/

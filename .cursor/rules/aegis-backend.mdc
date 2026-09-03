@@ -1,0 +1,29 @@
+---
+description: Aegis backend FastAPI / agents / pipeline conventions
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Aegis backend
+
+## Layout
+- Entry: `backend/app/main.py`
+- Config: `backend/app/config.py`
+- API: `backend/app/api/` (auth, repos, scans, stats, webhooks)
+- Agents: `backend/app/agents/` (finder, engineer, reviewer, pr_creator)
+- Orchestrator: `backend/app/pipeline/orchestrator.py`
+- RAG: `backend/app/rag/` · Scanner: `backend/app/scanner/semgrep.py`
+- GitHub App: `backend/app/github/` · Models: `backend/app/models/entities.py`
+- Sandbox CLI: `backend/runner/aegis_cli.py`
+
+## Conventions
+- Imports use `backend.app.*` (PYTHONPATH=/app in Docker).
+- Prefer structured logging with scan context.
+- Agent contract changes must stay aligned with frontend TypeScript types in the same change.
+- Engineer patches should include regression-test output per project conventions.
+- Reviewer should validate AST/safety before PR creation.
+- Webhook + auth paths: fail closed; use fixtures for tests instead of disabling verification.
+
+## Tests
+- E2E: `backend/tests/test_e2e_pipeline.py` / `./test-pipeline.sh`
+- Blackbox: `backend/tests/blackbox/` + `pipeline-test-*.sh` at repo root

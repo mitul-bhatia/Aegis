@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "_comment": "Use a fine-grained PAT scoped to repo contents+PRs for dev work. Do NOT reuse the GITHUB_APP_PRIVATE_KEY here — that's for Aegis's own runtime PyGithub client, not this dev tool."
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "${DATABASE_URL}"],
+      "_comment": "Point at your local docker-compose postgres, not a Supabase/prod instance. Lets the agent inspect the repos/scans/findings/patches schema directly instead of guessing column names."
+    },
+    "redis": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "REDIS_HOST", "-e", "REDIS_PORT", "mcp/redis"],
+      "env": {
+        "REDIS_HOST": "${REDIS_HOST:-127.0.0.1}",
+        "REDIS_PORT": "${REDIS_PORT:-6379}"
+      },
+      "_comment": "Inspect the RQ job queue backing pipeline/worker.py — see what's actually queued/stuck instead of guessing at worker state."
+    },
+    "semgrep": {
+      "type": "streamable-http",
+      "url": "https://mcp.semgrep.ai/mcp",
+      "_comment": "Official hosted Semgrep MCP. Lets the agent check rule syntax / run scans itself while editing scanner/semgrep_runner.py, instead of you round-tripping through the CLI to verify a rule works."
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "_comment": "Version-correct docs for LangGraph, SQLAlchemy 2.0, PyGithub, FastAPI. High value here specifically because LangGraph's StateGraph API has changed across versions and Groq's SDK is young — training-data knowledge is likely stale."
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "_comment": "Drive aegis-frontend's dashboard, scan detail page, and SSE live feed for real end-to-end checks (Task 9 in your PRD) instead of manually clicking through."
+    }
+  }
+}

@@ -1,0 +1,41 @@
+# Aegis 2.0 Production Frontend Dockerfile
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Enable corepack for modern package managers (optional, but good practice)
+RUN corepack enable
+
+# Copy package files
+COPY aegis-frontend/package*.json ./
+RUN npm ci
+
+# Copy the rest of the frontend code
+COPY aegis-frontend/ .
+
+# Build the Next.js application
+ENV NEXT_PUBLIC_API_URL=https://aegis-wpeu.onrender.com
+RUN npm run build
+
+# --- Runner Stage ---
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Don't run production as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+USER nextjs
+
+# Copy necessary files from builder
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

@@ -1,0 +1,24 @@
+---
+description: Ralph Wiggum autonomous loop protocol for Aegis — use when user asks to ralph, loop overnight, or iterate until done
+alwaysApply: false
+---
+
+# Ralph loop protocol (Aegis)
+
+When the user asks to run Ralph / overnight loop / iterate until done:
+
+1. Read `RALPH_TASK.md`, `.ralph/progress.md`, `.ralph/guardrails.md`, `docs/PROJECT_MEMORY.md`
+2. Work **one** unchecked success criterion per iteration
+3. Verify with tests/commands before checking the box
+4. Persist progress in `.ralph/` (not chat memory)
+5. Emit `<ralph>CONTINUE</ralph>`, `<ralph>COMPLETE</ralph>`, or `<ralph>GUTTER</ralph>`
+6. Obey Karpathy + engineering-discipline + `aegis-core` rules
+
+**CLI overnight (needs cursor-agent):**
+
+```bash
+./scripts/ralph once -y
+RALPH_MODEL=composer-2 ./scripts/ralph loop -n 20 -y
+```
+
+**In-IDE:** invoke `/ralph-loop` or ask for “one Ralph iteration on RALPH_TASK.md”.
