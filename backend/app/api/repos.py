@@ -35,9 +35,9 @@ def get_available_repos(
             target_user = u
 
     if not target_user:
-        target_user = db.query(User).first()
+        return []
 
-    installation_id = target_user.github_installation_id if target_user else None
+    installation_id = target_user.github_installation_id
     
     # Try fetching real repos from GitHub App Installation
     if installation_id:

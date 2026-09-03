@@ -43,3 +43,32 @@
 - Unauthenticated `GET /api/v1/auth/me` → 401 (fail closed)
 - Frontend callback warms backend via `/api/v1/repos` proxy before OAuth exchange
 - OAuth exchange requires `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET` configured (500 if missing, not crash)
+
+### 2026-09-04 — Deploy follow-up (push + prod smoke)
+
+**Git push:**
+- `git push origin main` — **success**
+- Range: `654db9c..6327bd6` (3 commits)
+  - `1aed3e1` feat(security): fail-closed auth, strict webhooks, payload limits
+  - `c0cc02a` test: blackbox suites and e2e auth seeding
+  - `6327bd6` chore: Ralph loop stack and ship-candidate documentation
+
+**Production smoke (CLI):**
+| Endpoint | Status | Notes |
+|----------|--------|-------|
+| `GET https://aegis-wpeu.onrender.com/health` | 200 | `{"status":"ok","app":"Aegis 2.0","version":"2.0.0"}` |
+| `GET https://aegis-wpeu.onrender.com/api/v1/auth/me` (no cookies) | 200 → **401** | Initial smoke returned user JSON (stale deploy). Re-smoke after Render caught up: **401** `{"detail":"Not authenticated"}` |
+
+**Root cause (200 on unauthenticated `/auth/me`):**
+- `backend/app/core/security.py`: `get_current_user_optional()` returned `db.query(User).first()` when no session/header — auto-authenticated any request if DB had users.
+- `backend/app/api/auth.py`: `/me` endpoint created/returned a demo user when `current_user` was None.
+- Fixed in `1aed3e1`; prod lagged until Render redeployed.
+
+**Follow-up hardening (2026-09-04):**
+- Added `backend/tests/test_auth.py` — unit tests for unauthenticated 401 + Bearer 200 (no live server required).
+- Removed remaining `repos.py` `User.first()` fallback on `/repos/available` (return `[]` when unauthenticated).
+- New `RALPH_TASK.md` milestone: prod auth parity verified, OAuth browser sign-off, optional `api.getUser()` cleanup.
+
+**Cold start:** First backend request ~25s; no 502/503; retry not needed.
+
+**Manual browser checks (pending):** OAuth login → dashboard repos list; confirm `/api/v1/auth/me` is 401 when logged out in browser.

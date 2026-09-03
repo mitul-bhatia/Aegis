@@ -1,50 +1,45 @@
 ---
-task: Aegis ship-hardening — production verification loop
-test_command: "./test-pipeline.sh"
+task: Aegis prod auth parity — verify deploy + OAuth sign-off
+test_command: "./pipeline-test-api.sh && ./test-pipeline.sh"
 ---
 
-# Task: Aegis Ship Hardening
+# Task: Production Auth Parity & OAuth Sign-off
 
-Bring Aegis 2.0 from "core built + live deploy path" to a verifiable ship candidate.
+Post ship-hardening follow-up: confirm fail-closed auth is live on Render, complete OAuth browser verification, and close remaining auth-debt.
+
 Read `docs/PROJECT_MEMORY.md`, `AGENTS.md`, `.ralph/guardrails.md`, and `.ralph/progress.md` before every iteration.
-
-Model-agnostic: works under Cursor Agent (Grok / Composer / others). Overnight CLI loops use `cursor-agent` + `RALPH_MODEL`.
 
 ## Context
 
-- Backend: `backend/app/` (FastAPI, agents, orchestrator, RAG, GitHub App)
-- Frontend: `aegis-frontend/` (Next.js 14)
-- Deploy: Render backend + Vercel frontend; secrets in `.env` / dashboards only
-- Security: sandbox + webhook verification are non-negotiable
-- Coding discipline: Karpathy + engineering-discipline rules in `.cursor/rules/`
+- Root cause of prod 200 on `/auth/me`: pre-hardening `get_current_user_optional()` returned `db.query(User).first()` and `/auth/me` fell back to creating/returning a demo user when unauthenticated.
+- Fix landed in `1aed3e1` (security + auth fail-closed). Re-smoke after each deploy.
+- Backend: `backend/app/` · Frontend: `aegis-frontend/` · Deploy: Render + Vercel
 
 ## Success Criteria
 
-1. [x] Uncommitted WIP triage: either commit blackbox tests + agent/API cleanup intentionally, or document deferred items in `.ralph/progress.md`
-2. [x] `./test-pipeline.sh` (or equivalent e2e) runs and passes locally
-3. [x] Blackbox suite green: `./pipeline-test-api.sh`, `./pipeline-test-webhooks.sh`, `./pipeline-test-sandbox.sh`, `./pipeline-test-adversarial.sh` (or note blockers with repro)
-4. [x] Backend health smoke: `GET /health` (or `/docs`) against local or Render URL succeeds
-5. [x] Auth smoke documented: OAuth / session path does not 500 on cold start (warmup/ping still works)
-6. [x] Frontend build succeeds: `cd aegis-frontend && npm run build`
-7. [x] Frontend↔backend contract: `aegis-frontend/lib/api.ts` aligns with `/api/v1` routes for auth, repos, scans, approve
-8. [x] Webhook signature verification path covered by fixture test (no bypass)
-9. [x] Sandbox constraints unchanged and verified (`Dockerfile.sandbox` + isolation test)
-10. [x] `docs/PROJECT_MEMORY.md` Stage snapshot updated to ship-candidate / shipped with date
-11. [x] No secrets committed; `.env` / `.env.production` remain gitignored
-12. [x] Bloat removal pass: document removals (hardcoded webhook secret fallback, dev auth bypasses); revert `docs.zip` binary drift
+1. [ ] Prod smoke: `curl -s -o /dev/null -w '%{http_code}' https://aegis-wpeu.onrender.com/api/v1/auth/me` → `401` (no cookies/headers)
+2. [ ] Prod smoke: response body is `{"detail":"Not authenticated"}` when unauthenticated
+3. [ ] Local unit test `backend/tests/test_auth.py` passes (unauthenticated → 401, bearer → 200)
+4. [ ] `./pipeline-test-api.sh` passes (blackbox auth expectation)
+5. [ ] `./test-pipeline.sh` passes (e2e with explicit Bearer auth seed)
+6. [ ] OAuth browser sign-off: login via Vercel frontend → dashboard loads repos → logout → `/auth/me` is 401 in browser devtools
+7. [ ] Document OAuth cold-start behavior if Render free tier sleep causes delay (warmup ping path)
+8. [ ] Optional cleanup: remove dead `api.getUser()` in `aegis-frontend/lib/api.ts` (calls non-existent `/auth/user/{id}`)
+9. [ ] Update `.ralph/progress.md` with prod smoke timestamps and OAuth result
+10. [ ] Update `docs/PROJECT_MEMORY.md` Stage snapshot if milestone confirmed shipped
 
-## Out of scope (do not expand into)
+## Out of scope
 
-- New product features unrelated to ship hardening
 - Relaxing sandbox / webhook / fork-PR policies
-- Large refactors "while here"
+- New product features unrelated to auth verification
+- Large refactors
 
 ## Ralph Instructions
 
 1. Work on the next incomplete criterion (marked `[ ]`)
 2. Check off completed criteria (`[ ]` → `[x]`)
-3. Run the relevant verify command after each meaningful change
-4. Commit only when the user asked — otherwise leave a clean diff summary in `.ralph/progress.md`
-5. Append lessons to `.ralph/guardrails.md` when you hit a repeated failure
+3. Run verify commands after each meaningful change
+4. Commit when user asks or when a deploy-worthy fix is ready
+5. Append lessons to `.ralph/guardrails.md` on repeated failures
 6. When ALL criteria are `[x]`, output: `<ralph>COMPLETE</ralph>`
-7. If stuck on the same issue 3+ times, output: `<ralph>GUTTER</ralph>` and stop
+7. If stuck 3+ times on same issue, output: `<ralph>GUTTER</ralph>` and stop
