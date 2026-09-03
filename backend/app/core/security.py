@@ -41,10 +41,8 @@ def get_current_user_optional(
         user = db.query(User).filter(User.id == user_id).first()
         if user:
             return user
-            
-    # Fallback to first user in database if single-user mode or local dev
-    first_user = db.query(User).first()
-    return first_user
+
+    return None
 
 
 def get_current_user(

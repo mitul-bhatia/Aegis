@@ -25,28 +25,7 @@ def exchange_github_oauth(
     Sets httpOnly session cookie and returns UserInfo.
     """
     if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
-        # Development fallback mode
-        user = db.query(User).first()
-        if not user:
-            user = User(
-                github_id=12345678,
-                github_username="demo_developer",
-                github_avatar_url="https://github.com/ghost.png",
-                github_installation_id=settings.GITHUB_APP_ID or 1001,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-
-        response.set_cookie(
-            key="aegis_session",
-            value=str(user.id),
-            httponly=True,
-            samesite="lax",
-            secure=False,
-            max_age=60 * 60 * 24 * 30,
-        )
-        return user
+        raise HTTPException(status_code=500, detail="GitHub Client ID or Secret not configured")
 
     # 1. Exchange code for access token with GitHub
     token_url = "https://github.com/login/oauth/access_token"
@@ -120,19 +99,7 @@ def get_current_user_profile(
 ):
     """Return current authenticated user profile."""
     if not current_user:
-        # Fallback to creating a local user if running fresh
-        user = db.query(User).first()
-        if not user:
-            user = User(
-                github_id=12345678,
-                github_username="developer",
-                github_avatar_url="https://github.com/ghost.png",
-                github_installation_id=154121833,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        return user
+        raise HTTPException(status_code=401, detail="Not authenticated")
     return current_user
 
 
@@ -152,18 +119,7 @@ def link_github_installation(
     """Link GitHub App Installation ID to a user account."""
     user = db.query(User).filter(User.id == req.user_id).first()
     if not user:
-        # Fallback to first user
-        user = db.query(User).first()
-        if not user:
-            user = User(
-                github_id=12345678,
-                github_username="developer",
-                github_installation_id=req.installation_id,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            return {"status": "ok", "user_id": user.id, "installation_id": req.installation_id}
+        raise HTTPException(status_code=404, detail="User not found")
 
     user.github_installation_id = req.installation_id
     db.commit()

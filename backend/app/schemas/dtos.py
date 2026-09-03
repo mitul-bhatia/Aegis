@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 
@@ -30,7 +30,7 @@ class UserInfo(BaseModel):
 
 class RepoCreateRequest(BaseModel):
     user_id: int
-    repo_url: str
+    repo_url: str = Field(..., max_length=512)
 
 
 class RepoInfo(BaseModel):

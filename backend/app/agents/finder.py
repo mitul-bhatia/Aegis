@@ -3,6 +3,7 @@ import json
 import logging
 from typing import List, Dict, Any, Optional
 from backend.app.core.llm_client import get_llm_response
+from backend.app.core.utils import extract_json_from_response
 
 from backend.app.config import settings
 from backend.app.rag.context_builder import build_agent_context, get_file_surrounding_context
@@ -75,16 +76,9 @@ Perform triage and output the verified list of high-confidence vulnerability fin
             max_tokens=2048,
         )
 
-        # Cleanup markdown json formatting if present
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
-        if response_text.startswith("```"):
-            response_text = response_text[3:]
-        
-        response_text = response_text.strip()
-        parsed_list = json.loads(response_text)
+        parsed_list = extract_json_from_response(response_text)
+        if not isinstance(parsed_list, list):
+            parsed_list = []
         
         validated_findings: List[FindingInfo] = []
         for item in parsed_list:

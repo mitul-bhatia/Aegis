@@ -49,27 +49,7 @@ def get_available_repos(
         except Exception as e:
             logger.warning(f"Could not list installation repos: {e}")
 
-    # Fallback to demo repositories list so UI displays seamlessly
-    return [
-        AvailableRepo(
-            id=101,
-            name="aegis-test-repo",
-            full_name="mitu1046/aegis-test-repo",
-            private=False,
-            html_url="https://github.com/mitu1046/aegis-test-repo",
-            description="Test repository for Aegis security remediation pipeline",
-            default_branch="main",
-        ),
-        AvailableRepo(
-            id=102,
-            name="flately",
-            full_name="mitu1046/flately",
-            private=False,
-            html_url="https://github.com/mitu1046/flately",
-            description="Roommate matching real-time platform",
-            default_branch="main",
-        ),
-    ]
+    return []
 
 
 @router.post("", response_model=RepoInfo)
@@ -82,14 +62,14 @@ def add_repository(
     """
     # Clean repo url to extract full_name (e.g. "mitu1046/aegis-test-repo")
     repo_url = req.repo_url.strip()
+    if not repo_url.startswith("http") and not repo_url.startswith("git@"):
+        raise HTTPException(status_code=422, detail="Invalid repository URL format")
+        
     full_name = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
     
-    user = db.query(User).filter(User.id == req.user_id).first() or db.query(User).first()
+    user = db.query(User).filter(User.id == req.user_id).first()
     if not user:
-        user = User(github_id=12345678, github_username="developer")
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        raise HTTPException(status_code=404, detail="User not found")
 
     existing = db.query(Repository).filter(Repository.full_name == full_name).first()
     if existing:

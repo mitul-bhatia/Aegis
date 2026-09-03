@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from backend.app.core.llm_client import get_llm_response
+from backend.app.core.utils import extract_json_from_response
 
 from backend.app.config import settings
 
@@ -66,14 +67,9 @@ Generate the minimal secure patch and companion regression test.
             max_tokens=4096,
         )
 
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
-        if response_text.startswith("```"):
-            response_text = response_text[3:]
-            
-        data = json.loads(response_text.strip())
+        data = extract_json_from_response(response_text)
+        if not isinstance(data, dict):
+            data = {}
         patched_content = data.get("patched_file_content", original_code)
         
         diff_lines = list(difflib.unified_diff(

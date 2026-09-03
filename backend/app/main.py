@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.config import settings
@@ -36,6 +37,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+MAX_PAYLOAD_SIZE = 1024 * 1024  # 1MB
+
+@app.middleware("http")
+async def limit_payload_size(request: Request, call_next):
+    if "content-length" in request.headers:
+        try:
+            content_length = int(request.headers.get("content-length"))
+            if content_length > MAX_PAYLOAD_SIZE:
+                return JSONResponse(status_code=413, content={"detail": "Payload Too Large"})
+        except ValueError:
+            pass
+    return await call_next(request)
+
 # CORS configuration to seamlessly communicate with Vercel and localhost Next.js frontend
 origins = [
     settings.FRONTEND_URL,
@@ -61,9 +75,8 @@ app.include_router(scans_router, prefix="/api/v1")
 app.include_router(stats_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
 
-# Also mount webhook router directly at /webhook and /webhooks for GitHub App default configs
-app.include_router(webhooks_router, prefix="/webhook")
-app.include_router(webhooks_router, prefix="/webhooks")
+# Also mount webhook router directly at / for GitHub App default configs if needed
+app.include_router(webhooks_router, prefix="")
 
 
 @app.get("/health")

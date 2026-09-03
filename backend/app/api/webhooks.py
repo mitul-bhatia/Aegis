@@ -2,7 +2,7 @@ import hmac
 import hashlib
 import json
 import logging
-from fastapi import APIRouter, Request, Header, HTTPException, status, Depends
+from fastapi import APIRouter, Request, Header, HTTPException, status, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from backend.app.config import settings
@@ -11,7 +11,7 @@ from backend.app.models.entities import Repository, Scan
 from backend.app.api.scans import trigger_scan_direct
 
 logger = logging.getLogger("aegis.api.webhooks")
-router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+router = APIRouter(prefix="/github", tags=["webhooks"])
 
 
 def verify_github_signature(payload_body: bytes, signature_header: str) -> bool:
@@ -19,21 +19,13 @@ def verify_github_signature(payload_body: bytes, signature_header: str) -> bool:
     if not settings.GITHUB_WEBHOOK_SECRET:
         return True
     if not signature_header:
-        # If signature is not provided in development/testing, allow if secret is unset
-        logger.warning("No X-Hub-Signature-256 header provided in webhook request.")
-        return True
+        logger.warning("No X-Hub-Signature-256 header provided in webhook request. Rejecting.")
+        return False
 
-    # Check primary configured secret
-    secrets_to_try = [settings.GITHUB_WEBHOOK_SECRET]
-    # Also support common fallback if placeholder was used
-    if "openssl" in settings.GITHUB_WEBHOOK_SECRET:
-        secrets_to_try.append("0901e138be781dbccca78bbec38fbb2eb01ec0c1")
-    elif settings.GITHUB_WEBHOOK_SECRET != "0901e138be781dbccca78bbec38fbb2eb01ec0c1":
-        secrets_to_try.append("0901e138be781dbccca78bbec38fbb2eb01ec0c1")
-
-    for sec in secrets_to_try:
+    secret = settings.GITHUB_WEBHOOK_SECRET
+    if secret:
         hash_object = hmac.new(
-            sec.encode("utf-8"),
+            secret.encode("utf-8"),
             msg=payload_body,
             digestmod=hashlib.sha256,
         )
@@ -45,10 +37,10 @@ def verify_github_signature(payload_body: bytes, signature_header: str) -> bool:
     return False
 
 
-@router.post("/github")
-@router.post("")
+@router.post("/webhook")
 async def github_webhook_handler(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_github_event: str = Header("push"),
     x_hub_signature_256: str = Header(None),
     db: Session = Depends(get_db),
@@ -73,7 +65,7 @@ async def github_webhook_handler(
 
         repo = db.query(Repository).filter(Repository.full_name == repo_full_name).first()
         if repo:
-            trigger_scan_direct(repo_id=repo.id, commit_sha=commit_sha, branch=branch, db=db)
+            await trigger_scan_direct(repo_id=repo.id, background_tasks=background_tasks, commit_sha=commit_sha, branch=branch, db=db)
             return {"status": "scan_triggered", "repo": repo_full_name, "commit": commit_sha}
 
     return {"status": "received", "event": x_github_event}

@@ -2,6 +2,7 @@ import ast
 import logging
 from typing import Dict, Any
 from backend.app.core.llm_client import get_llm_response
+from backend.app.core.utils import extract_json_from_response
 from backend.app.config import settings
 
 logger = logging.getLogger("aegis.agents.reviewer")
@@ -56,15 +57,9 @@ Respond in JSON format:
             max_tokens=300,
         )
 
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
-        if response_text.startswith("```"):
-            response_text = response_text[3:]
-
-        import json
-        data = json.loads(response_text.strip())
+        data = extract_json_from_response(response_text)
+        if not isinstance(data, dict):
+            data = {}
         return {
             "is_safe": data.get("is_safe", False),
             "feedback": data.get("feedback", "Review completed by LLM."),
