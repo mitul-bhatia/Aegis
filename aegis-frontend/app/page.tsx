@@ -9,7 +9,7 @@ import { SwarmTerminal } from "@/components/SwarmTerminal";
 import { api } from "@/lib/api";
 import { AGENTS, PIPELINE_NODES, STATS, HERO_METRICS, STACK, Mono, PipelineDemo } from "./_landing";
 
-const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || process.env.GITHUB_CLIENT_ID || "Ov23li7vdknIS2ZtxxOH";
+const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID ?? "";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -19,6 +19,11 @@ export default function LandingPage() {
   }, [router]);
 
   function handleGitHubLogin() {
+    if (!GITHUB_CLIENT_ID) {
+      console.error("NEXT_PUBLIC_GITHUB_CLIENT_ID is not configured");
+      alert("GitHub sign-in is not configured. Set NEXT_PUBLIC_GITHUB_CLIENT_ID in your deployment environment.");
+      return;
+    }
     const redirectUri = `${window.location.origin}/auth/callback`;
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo,write:repo_hook&redirect_uri=${redirectUri}`;
   }

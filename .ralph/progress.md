@@ -102,3 +102,19 @@
 - Vercel env vars (NEXT_PUBLIC_API_URL, OAuth client ID)
 - GitHub App webhook/OAuth URL configuration
 - Manual OAuth → scan → approve browser smoke
+
+### 2026-09-04 — Deploy follow-up (push docs + OAuth hardcode fix)
+
+**Git:**
+- Confirmed local `c9f8fdc` (deployment runbook + test re-verify) ahead of `origin/main`
+- Pushed `origin main` (includes docs commit + OAuth fix)
+
+**Security fix:**
+- Removed hardcoded GitHub OAuth client ID fallback from `aegis-frontend/app/page.tsx`
+- Now uses `NEXT_PUBLIC_GITHUB_CLIENT_ID` only; login button fails clearly if unset
+- `app/auth/callback/page.tsx` unchanged (backend token exchange only; no client ID)
+- `app/_landing.tsx` already used env-only pattern (no hardcode)
+
+**Build:** `npm run build` (frontend) — PASS
+
+**Still blocked on user:** fill `docs/DEPLOYMENT_NEEDS_FROM_USER.md` checklist in Render/Vercel/GitHub dashboards
