@@ -4,7 +4,7 @@
 > **Update when:** Stage changes, deploy URLs change, or major architecture drifts.  
 > **Secrets:** List **env var names only**. Never paste key values here.
 
-**Last updated:** 2026-09-03 (ship-candidate)
+**Last updated:** 2026-09-04 (v1 deploy in progress)
 
 ---
 
@@ -34,9 +34,9 @@ Aegis 2.0 is an autonomous security remediation platform: it monitors GitHub rep
 
 ---
 
-## 2. Stage snapshot (2026-09-03)
+## 2. Stage snapshot (2026-09-04)
 
-**Stage:** **Ship-candidate** — production hardening complete; Ralph loop verified locally. All `RALPH_TASK.md` criteria green.
+**Stage:** **v1 deploy in progress** — automated verification green (all test suites + prod auth smoke). Cloud secrets + manual OAuth E2E pending. See `docs/DEPLOYMENT.md` and `docs/DEPLOYMENT_NEEDS_FROM_USER.md`.
 
 | Area | Status |
 |------|--------|
@@ -49,6 +49,7 @@ Aegis 2.0 is an autonomous security remediation platform: it monitors GitHub rep
 | Cursor memory rules | Present (`.cursor/rules/`, this file, `AGENTS.md`) |
 | Karpathy + engineering-discipline | Present (always-on rules) |
 | Ralph Wiggum loop | Present + verified (task, `.ralph/`, scripts); CLI needs `cursor-agent` |
+| v1 deploy runbook | `docs/DEPLOYMENT.md` + `docs/DEPLOYMENT_NEEDS_FROM_USER.md` |
 
 **Git:**
 - Active branch: `main` (tracks `origin/main`)
@@ -257,14 +258,13 @@ Also see: `.agents/plugins/aegis-dev/rules/aegis-conventions.md`
 
 ## 10. Next ship checklist
 
-Canonical checkboxes: **[`RALPH_TASK.md`](../RALPH_TASK.md)** (Ralph drives these). Summary:
+Canonical checkboxes: **[`RALPH_TASK.md`](../RALPH_TASK.md)** (Ralph drives these). Deploy runbook: **[`docs/DEPLOYMENT.md`](DEPLOYMENT.md)**. User credentials: **[`docs/DEPLOYMENT_NEEDS_FROM_USER.md`](DEPLOYMENT_NEEDS_FROM_USER.md)**.
 
-1. Triage uncommitted WIP (commit or defer in `.ralph/progress.md`).
-2. E2E + blackbox suites green locally.
-3. Confirm Render env + health; Vercel `NEXT_PUBLIC_API_URL` matches backend.
-4. Smoke: OAuth → link repo → scan → approve → PR.
-5. Webhook signature path with fixture (no bypass).
-6. Update this Stage snapshot to ship-candidate / shipped.
+1. [x] E2E + blackbox suites green locally (2026-09-04).
+2. [x] Prod smoke: `/health` 200, `/auth/me` 401.
+3. [ ] User sets Render + Vercel + GitHub App secrets (see DEPLOYMENT_NEEDS_FROM_USER).
+4. [ ] Manual smoke: OAuth → link repo → scan → approve → PR.
+5. [ ] Update Stage snapshot to **v1 shipped**.
 
 ---
 

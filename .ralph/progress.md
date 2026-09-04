@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Iterations completed: 1
-- Current status: **Ship-candidate** — all `RALPH_TASK.md` criteria checked off (2026-09-03)
-- Model: Grok 4.5 in Cursor Agent (interactive Ralph iteration)
+- Iterations completed: 2
+- Current status: **v1 deploy in progress** — automated verification green; awaiting user secrets for cloud config (2026-09-04)
+- Model: Ralph deployment worker (Cursor Agent)
 
 ## Session History
 
@@ -72,3 +72,33 @@
 **Cold start:** First backend request ~25s; no 502/503; retry not needed.
 
 **Manual browser checks (pending):** OAuth login → dashboard repos list; confirm `/api/v1/auth/me` is 401 when logged out in browser.
+
+### 2026-09-04 — Iteration 2 (v1 deployment re-verify)
+
+**RALPH_TASK.md:** Replaced auth-parity milestone with v1 deployment criteria (54 checkboxes; 18 automated items checked).
+
+**Test results (2026-09-04 16:04 IST):**
+| Suite | Result | Notes |
+|-------|--------|-------|
+| `./pipeline-test-api.sh` | PASS | 4/4 |
+| `./pipeline-test-webhooks.sh` | PASS | 2/2 (initial fail: port 8081 race from parallel runs) |
+| `./pipeline-test-adversarial.sh` | PASS | 3/3 |
+| `./pipeline-test-sandbox.sh` | PASS | 1 static + 2 skipped (no Docker daemon) |
+| `./test-pipeline.sh` | PASS | 10/10 e2e |
+| `backend/tests/test_auth.py` | PASS | 2/2 |
+| `npm run build` (frontend) | PASS | Next.js 14 production build |
+| `GET /health` (Render prod) | 200 | `{"status":"ok","app":"Aegis 2.0","version":"2.0.0"}` |
+| `GET /api/v1/auth/me` (Render prod, no auth) | 401 | `{"detail":"Not authenticated"}` |
+
+**Docs created:**
+- `docs/DEPLOYMENT.md` — v1 deploy runbook
+- `docs/DEPLOYMENT_NEEDS_FROM_USER.md` — credential checklist for operator
+
+**Cleanup:**
+- Removed dead `api.getUser()` from `aegis-frontend/lib/api.ts`
+
+**Blocked on user (secrets):**
+- Render env vars (GitHub App, Groq, Supabase, SESSION_SECRET)
+- Vercel env vars (NEXT_PUBLIC_API_URL, OAuth client ID)
+- GitHub App webhook/OAuth URL configuration
+- Manual OAuth → scan → approve browser smoke

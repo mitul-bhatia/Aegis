@@ -61,5 +61,23 @@ python backend/runner/aegis_cli.py verify 1 --api-url http://localhost:8000
 
 Run the full end-to-end multi-agent pipeline test suite:
 ```bash
-.venv/bin/python backend/tests/test_e2e_pipeline.py
+./test-pipeline.sh
+./pipeline-test-api.sh
+./pipeline-test-webhooks.sh
+./pipeline-test-adversarial.sh
+./pipeline-test-sandbox.sh
+.venv/bin/python -m pytest backend/tests/test_auth.py
+```
+
+---
+
+## 🚢 Production Deployment
+
+See **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)** for the v1 deploy runbook and **[`docs/DEPLOYMENT_NEEDS_FROM_USER.md`](docs/DEPLOYMENT_NEEDS_FROM_USER.md)** for the credential checklist.
+
+Quick prod smoke:
+```bash
+curl -s https://aegis-wpeu.onrender.com/health
+curl -s -o /dev/null -w '%{http_code}\n' https://aegis-wpeu.onrender.com/api/v1/auth/me
+# Expect: 200 health, 401 auth/me
 ```

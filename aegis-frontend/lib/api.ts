@@ -134,16 +134,6 @@ export const api = {
     ).catch(() => null);
   },
 
-  /** Get user by ID (kept for backwards compat). */
-  async getUser(userId: number) {
-    const res = await fetchWithRetry(
-      `${API_V1}/auth/user/${userId}`,
-      getOpts(),
-    );
-    if (!res.ok) throw new Error("User not found");
-    return res.json() as Promise<UserInfo>;
-  },
-
   // ── Repos ─────────────────────────────────────────────
 
   async linkInstallation(userId: number, installationId: number) {
