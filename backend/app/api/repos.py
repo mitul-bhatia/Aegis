@@ -37,6 +37,18 @@ def get_available_repos(
     if not target_user:
         return []
 
+    # Auto-link installation if missing
+    if not target_user.github_installation_id and target_user.github_username:
+        try:
+            from backend.app.github.auth import find_user_installation_id
+            inst_id = find_user_installation_id(target_user.github_username)
+            if inst_id:
+                target_user.github_installation_id = inst_id
+                db.commit()
+                db.refresh(target_user)
+        except Exception as e:
+            logger.debug(f"Auto-linking installation in get_available_repos failed: {e}")
+
     installation_id = target_user.github_installation_id
     
     # Try fetching real repos from GitHub App Installation

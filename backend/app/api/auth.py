@@ -76,7 +76,12 @@ def exchange_github_oauth(
         else:
             user.github_username = username
             user.github_avatar_url = avatar_url
-            user.access_token = access_token
+        # Auto-link installation ID if available
+        if not user.github_installation_id:
+            from backend.app.github.auth import find_user_installation_id
+            inst_id = find_user_installation_id(username)
+            if inst_id:
+                user.github_installation_id = inst_id
 
         db.commit()
         db.refresh(user)
@@ -108,6 +113,19 @@ def get_current_user_profile(
     """Return current authenticated user profile."""
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Auto-link GitHub App installation if not yet set
+    if not current_user.github_installation_id and current_user.github_username:
+        try:
+            from backend.app.github.auth import find_user_installation_id
+            inst_id = find_user_installation_id(current_user.github_username)
+            if inst_id:
+                current_user.github_installation_id = inst_id
+                db.commit()
+                db.refresh(current_user)
+        except Exception as e:
+            logger.debug(f"Auto-linking installation in /me failed: {e}")
+
     return current_user
 
 

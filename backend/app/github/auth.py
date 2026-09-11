@@ -79,3 +79,27 @@ def get_installation_access_token(installation_id: int) -> str:
     # Cache for 55 minutes
     _TOKEN_CACHE[installation_id] = (token, now + 3300)
     return token
+
+
+def find_user_installation_id(username: str) -> Optional[int]:
+    """
+    Check if a GitHub user or organization has an active installation of the GitHub App.
+    Returns installation ID if found, otherwise None.
+    """
+    try:
+        app_jwt = generate_app_jwt()
+        url = f"https://api.github.com/users/{username}/installation"
+        headers = {
+            "Authorization": f"Bearer {app_jwt}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            inst_id = resp.json().get("id")
+            if inst_id:
+                logger.info(f"Discovered GitHub App installation ID {inst_id} for user {username}")
+                return int(inst_id)
+    except Exception as e:
+        logger.debug(f"Could not lookup GitHub installation for user {username}: {e}")
+    return None
