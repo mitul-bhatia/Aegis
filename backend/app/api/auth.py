@@ -63,22 +63,30 @@ def exchange_github_oauth(
     avatar_url = gh_user.get("avatar_url", "")
 
     # 3. Create or update user in database
-    user = db.query(User).filter(User.github_id == github_id).first()
-    if not user:
-        user = User(
-            github_id=github_id,
-            github_username=username,
-            github_avatar_url=avatar_url,
-            access_token=access_token,
-        )
-        db.add(user)
-    else:
-        user.github_username = username
-        user.github_avatar_url = avatar_url
-        user.access_token = access_token
+    try:
+        user = db.query(User).filter(User.github_id == github_id).first()
+        if not user:
+            user = User(
+                github_id=github_id,
+                github_username=username,
+                github_avatar_url=avatar_url,
+                access_token=access_token,
+            )
+            db.add(user)
+        else:
+            user.github_username = username
+            user.github_avatar_url = avatar_url
+            user.access_token = access_token
 
-    db.commit()
-    db.refresh(user)
+        db.commit()
+        db.refresh(user)
+    except Exception as e:
+        logger.error(f"Error persisting user to database: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error while saving user: {str(e)}"
+        )
 
     # 4. Set Session Cookie
     response.set_cookie(

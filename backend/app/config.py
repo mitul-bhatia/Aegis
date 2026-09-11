@@ -55,9 +55,15 @@ class Settings(BaseSettings):
 
     @property
     def normalized_database_url(self) -> str:
-        url = self.DATABASE_URL
+        url = self.DATABASE_URL.strip().strip("'\"")
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
+        
+        # Automatically rewrite IPv6-only Supabase direct host to IPv4 pooler
+        if "db.ktprbekovcegnmyqidxh.supabase.co" in url:
+            url = url.replace("db.ktprbekovcegnmyqidxh.supabase.co", "aws-0-ap-southeast-1.pooler.supabase.com")
+            if "://postgres:" in url:
+                url = url.replace("://postgres:", "://postgres.ktprbekovcegnmyqidxh:")
         return url
 
 

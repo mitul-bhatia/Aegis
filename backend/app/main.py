@@ -79,10 +79,39 @@ app.include_router(webhooks_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="")
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"}
+    )
+
+
 @app.get("/health")
 def health_check():
     """Health check endpoint for Render / monitoring."""
-    return {"status": "ok", "app": settings.PROJECT_NAME, "version": settings.VERSION}
+    db_status = "ok"
+    db_backend = "sqlite"
+    db_error = None
+    try:
+        from backend.app.core.database import engine
+        from sqlalchemy import text
+        db_backend = "sqlite" if "sqlite" in str(engine.url) else "postgresql"
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = "error"
+        db_error = str(e)
+
+    return {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "app": settings.PROJECT_NAME,
+        "version": settings.VERSION,
+        "database": db_status,
+        "db_backend": db_backend,
+        "db_error": db_error,
+    }
 
 
 @app.get("/")

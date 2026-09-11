@@ -41,6 +41,19 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db():
-    """Create tables if they don't exist and test connection."""
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database schemas initialized.")
+    """Create tables if they don't exist and test connection with fallback."""
+    global engine, SessionLocal
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database schemas initialized on primary database.")
+    except Exception as e:
+        logger.error(f"Failed to connect to primary database ({e}). Falling back to local SQLite.")
+        engine = create_engine(
+            "sqlite:///./aegis.db",
+            connect_args={"check_same_thread": False},
+        )
+        SessionLocal.configure(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        logger.info("Local SQLite database initialized as fallback.")
