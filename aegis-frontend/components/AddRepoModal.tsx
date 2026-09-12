@@ -222,7 +222,7 @@ export function AddRepoModal({
                         {repo.is_monitored ? (
                           <Button disabled variant="outline" size="sm">Monitored</Button>
                         ) : (
-                          <Button size="sm" onClick={() => handleMonitorRepo(repo.full_name)}>Monitor</Button>
+                          <Button size="sm" onClick={() => handleMonitorRepo(repo.html_url || `https://github.com/${repo.full_name}`)}>Monitor</Button>
                         )}
                       </div>
                     ))}

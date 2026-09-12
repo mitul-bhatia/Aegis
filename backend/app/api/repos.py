@@ -72,12 +72,22 @@ def add_repository(
     """
     Link a repository to Aegis for active scanning & monitoring.
     """
-    # Clean repo url to extract full_name (e.g. "mitu1046/aegis-test-repo")
+    # Clean repo url to extract full_name (supports 'owner/repo', 'https://github.com/owner/repo', etc.)
     repo_url = req.repo_url.strip()
-    if not repo_url.startswith("http") and not repo_url.startswith("git@"):
+    if "/" not in repo_url or " " in repo_url:
         raise HTTPException(status_code=422, detail="Invalid repository URL format")
         
-    full_name = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
+    full_name = (
+        repo_url
+        .replace("https://github.com/", "")
+        .replace("http://github.com/", "")
+        .replace("git@github.com:", "")
+        .replace(".git", "")
+        .strip("/")
+    )
+    parts = full_name.split("/")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise HTTPException(status_code=422, detail="Invalid repository URL format")
     
     user = db.query(User).filter(User.id == req.user_id).first()
     if not user:
