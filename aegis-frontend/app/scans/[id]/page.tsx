@@ -200,9 +200,9 @@ export default function ScanDetailPage() {
         ))}
       </div>
 
-      <main style={{ maxWidth: 1280, margin: "24px auto", padding: "28px", display: "grid", gridTemplateColumns: "300px 1fr", gap: 1, background: "var(--border)", border: "1px solid var(--border)" }}>
+      <main className="max-w-[1400px] mx-auto my-6 px-4 md:px-7" style={{ display: "grid", gridTemplateColumns: "minmax(340px, 380px) 1fr", gap: 20 }}>
         {/* ── Left: Pipeline ── */}
-        <div style={{ background: "var(--surface)", padding: 24 }}>
+        <div style={{ background: "var(--surface)", padding: 24, border: "1px solid var(--border)" }}>
           <M style={{ fontSize: 10, color: "var(--muted)", letterSpacing: "0.15em", textTransform: "uppercase", display: "block", marginBottom: 20 }}>// Agent Pipeline</M>
           <ErrorBoundary fallbackTitle="Pipeline timeline failed">
             <PipelineTimeline scan={scan} />
@@ -222,7 +222,7 @@ export default function ScanDetailPage() {
         </div>
 
         {/* ── Right: Active Content ── */}
-        <div style={{ background: "var(--surface)", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ background: "var(--surface)", padding: 24, display: "flex", flexDirection: "column", gap: 16, border: "1px solid var(--border)" }}>
           {scan.status === "awaiting_approval" && (
             <CriticalApprovalBanner scan={scan} onApprove={handleApprove} onReject={handleReject} />
           )}

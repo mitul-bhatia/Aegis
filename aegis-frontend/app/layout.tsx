@@ -50,12 +50,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          {/* ThreatBanner is fixed at very top — contributes 36px to page offset */}
-          <div className="fixed top-0 left-0 right-0 z-[200]">
-            <ThreatBanner />
-          </div>
-          {/* Page content — top padding handled per-page so nav can be sticky or inline */}
-          <div className="pt-9">{children}</div>
+          <ThreatBanner />
+          <div className="min-h-screen">{children}</div>
         </ThemeProvider>
       </body>
     </html>

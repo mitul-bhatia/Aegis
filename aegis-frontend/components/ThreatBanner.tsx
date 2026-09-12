@@ -23,7 +23,7 @@ export function ThreatBanner() {
         background: "var(--red-dim)",
         borderBottom: "1px solid rgba(255,43,74,0.25)",
       }}
-      className="flex items-center gap-0 overflow-hidden h-9 z-[200] relative"
+      className="flex items-center gap-0 overflow-hidden h-9 z-10 relative"
     >
       {/* Label */}
       <div

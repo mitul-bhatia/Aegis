@@ -19,10 +19,11 @@ venv/
 *.egg-info/
 dist/
 build/
-
 # Aegis runtime data
 aegis_vector_db/
-repos/
+/repos/
+backend/repos/
+!aegis-frontend/app/repos/
 aegis.db
 *.db
 *.log

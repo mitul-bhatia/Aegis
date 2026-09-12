@@ -56,12 +56,14 @@ async function fetchWithRetry(
     }
 
     const text = await res.text().catch(() => "");
+    let errDetail = text.slice(0, 100) || "Request failed";
     try {
-      const err = JSON.parse(text);
-      throw new Error(err.detail || err.error || "Request failed");
-    } catch (e) {
-      throw new Error(text.slice(0, 100) || "Request failed");
+      const parsed = JSON.parse(text);
+      errDetail = parsed.detail || parsed.error || errDetail;
+    } catch {
+      // HTML or plain text response from serverless/proxy
     }
+    throw new Error(errDetail);
   }
   throw new Error("Request failed");
 }

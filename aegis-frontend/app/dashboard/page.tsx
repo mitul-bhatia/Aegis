@@ -70,9 +70,11 @@ function RepoCard({ repo, onDelete, onTriggerScan }: { repo: RepoInfo; onDelete:
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ minWidth: 0 }}>
-          <Link href={`/repos/${repo.id}`} style={{ textDecoration: "none" }}>
-            <div style={{ fontFamily: "var(--font-syne, sans-serif)", fontWeight: 600, fontSize: 14, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {repo.full_name}
+          <Link href={`/repos/${repo.id}`} style={{ textDecoration: "none" }} className="group">
+            <div style={{ fontFamily: "var(--font-syne, sans-serif)", fontWeight: 600, fontSize: 14, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              className="hover:text-[var(--green)] transition-colors flex items-center gap-1.5">
+              <span>{repo.full_name}</span>
+              <span style={{ fontSize: 11, color: "var(--muted)" }} className="group-hover:translate-x-0.5 transition-transform">↗</span>
             </div>
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>

@@ -31,44 +31,50 @@ function FindingRow({ finding, index, isConfirmed }: FindingRowProps) {
 
   return (
     <div className={cn(
-      "rounded-lg border transition-colors",
-      isConfirmed ? "border-red-500/30 bg-red-500/5" : "border-border/40 bg-card/30"
+      "rounded-lg border transition-colors overflow-hidden",
+      isConfirmed ? "border-red-500/40 bg-red-500/10" : "border-border/40 bg-card/40"
     )}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left"
+        className="w-full flex flex-col gap-1.5 p-2.5 text-left hover:bg-white/[0.02] transition-colors"
       >
-        <span className="text-xs text-muted-foreground w-4 shrink-0">{index + 1}</span>
+        <div className="flex items-center justify-between gap-2 w-full">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-[11px] font-mono text-muted-foreground shrink-0 w-3.5">
+              {index + 1}
+            </span>
+            <span className={cn("inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium shrink-0", sev.cls)}>
+              <span className={cn("h-1.5 w-1.5 rounded-full", sev.dot)} />
+              {finding.severity}
+            </span>
+            <span className="text-xs font-semibold text-foreground truncate" title={finding.vuln_type}>
+              {finding.vuln_type}
+            </span>
+          </div>
 
-        {/* Severity badge */}
-        <span className={cn("inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs font-medium shrink-0", sev.cls)}>
-          <span className={cn("h-1.5 w-1.5 rounded-full", sev.dot)} />
-          {finding.severity}
-        </span>
+          <div className="flex items-center gap-1 shrink-0">
+            {isConfirmed && (
+              <span className="text-[10px] text-red-400 font-bold tracking-wider px-1 rounded bg-red-500/20">
+                ACTIVE
+              </span>
+            )}
+            {expanded
+              ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            }
+          </div>
+        </div>
 
-        {/* Vuln type */}
-        <span className="text-xs font-medium text-foreground flex-1 truncate">{finding.vuln_type}</span>
-
-        {/* File + line */}
-        <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-          <FileCode2 className="h-3 w-3" />
-          <code className="text-primary">{finding.file}:{finding.line_start}</code>
-        </span>
-
-        {/* Confidence */}
-        <span className={cn("text-xs shrink-0", conf)}>
-          {finding.confidence}
-        </span>
-
-        {/* Confirmed badge */}
-        {isConfirmed && (
-          <span className="text-xs text-red-400 font-semibold shrink-0">CONFIRMED</span>
-        )}
-
-        {expanded
-          ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        }
+        {/* Second line: File + Line & Confidence */}
+        <div className="flex items-center justify-between gap-2 w-full text-[11px] text-muted-foreground pl-5">
+          <span className="flex items-center gap-1 truncate font-mono min-w-0">
+            <FileCode2 className="h-3 w-3 text-muted-foreground shrink-0" />
+            <code className="text-primary truncate">{finding.file}:{finding.line_start}</code>
+          </span>
+          <span className={cn("text-[10px] font-mono shrink-0", conf)}>
+            {finding.confidence}
+          </span>
+        </div>
       </button>
 
       {expanded && (
